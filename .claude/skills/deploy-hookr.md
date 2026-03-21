@@ -134,20 +134,20 @@ npm install -g hookr
 
 Retrieve the admin token from the server (it was auto-generated during deploy):
 ```bash
-# Via SSH
-ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'grep HOOKR_ADMIN_TOKEN /opt/hookr/.env'
+# Via SSH (token is saved to a restricted file and also in .env)
+ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'sudo cat /opt/hookr/.admin-token'
 ```
 
 Then configure and create a channel:
 ```bash
-# Set the admin token (required for channel create/delete on deployed servers)
+# Set the admin token (required for channel management on deployed servers)
 export HOOKR_ADMIN_TOKEN=<ADMIN_TOKEN_FROM_SERVER>
 
 hookr login <AUTH_TOKEN> -s https://<DOMAIN>
 hookr channel create -n default -s https://<DOMAIN>
 ```
 
-The admin token is only needed for creating/deleting channels. The channel's auth token (returned by `channel create`) is used for listening, polling, and inspecting events.
+The admin token is needed for creating, listing, and deleting channels. The channel's auth token (returned by `channel create`) is used for listening, polling, and inspecting events.
 
 Capture the **channel ID**, **webhook URL**, and **auth token** from the output.
 

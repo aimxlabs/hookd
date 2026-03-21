@@ -53,10 +53,10 @@ cd hookr
 
 ### After deploying with either script
 
-The deploy scripts auto-generate an admin token (needed to create/delete channels). Retrieve it from the server:
+The deploy scripts auto-generate an admin token (needed for channel management). Retrieve it from the server:
 
 ```bash
-ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'grep HOOKR_ADMIN_TOKEN /opt/hookr/.env'
+ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'sudo cat /opt/hookr/.admin-token'
 ```
 
 Then set it locally before running `hookr setup`:
@@ -272,8 +272,8 @@ curl https://hookr.example.com/health
 # On your local machine (not the server)
 npm install -g hookr
 
-# Retrieve the admin token from the server's .env
-ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'grep HOOKR_ADMIN_TOKEN /opt/hookr/.env'
+# Retrieve the admin token from the server
+ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'sudo cat /opt/hookr/.admin-token'
 
 # Set it locally
 export HOOKR_ADMIN_TOKEN=<admin-token-from-above>
@@ -285,7 +285,7 @@ hookr setup -s https://hookr.example.com
 hookr listen <channelId> --target http://localhost:8080/webhook
 ```
 
-> **Note:** The admin token is only needed for creating/deleting channels. Once you have a channel, the channel's auth token (saved automatically by `hookr setup`) is all you need for `listen`, `poll`, and `inspect`.
+> **Note:** The admin token is needed for creating, listing, and deleting channels. Once you have a channel, the channel's auth token (saved automatically by `hookr setup`) is all you need for `listen`, `poll`, and `inspect`.
 
 ---
 

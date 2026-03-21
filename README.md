@@ -74,6 +74,7 @@ hookr channel create           Create a new webhook channel
   --admin-token <token>        Admin token (or set HOOKR_ADMIN_TOKEN)
 
 hookr channel list             List all channels
+  --admin-token <token>        Admin token (or set HOOKR_ADMIN_TOKEN)
 hookr channel delete <id>      Delete a channel
   --admin-token <token>        Admin token (or set HOOKR_ADMIN_TOKEN)
 hookr channel inspect <id>     Show recent events
@@ -128,8 +129,8 @@ The server exposes a REST API for channel management:
 
 ```
 POST   /api/channels              Create a channel           (admin token)
-GET    /api/channels              List channels              (public)
-GET    /api/channels/:id          Get channel details        (public, no secrets)
+GET    /api/channels              List channels              (admin token)
+GET    /api/channels/:id          Get channel details        (admin token)
 DELETE /api/channels/:id          Delete a channel           (admin token)
 GET    /api/channels/:id/events   Recent events              (channel token)
 GET    /api/channels/:id/poll     Poll for undelivered events (channel token)
@@ -181,7 +182,7 @@ docker compose up -d
 
 That's it. Caddy automatically provisions HTTPS via Let's Encrypt. Visit `https://your-domain.com/health` to verify.
 
-> **Tip:** Generate an admin token with `openssl rand -hex 32` and set it as `HOOKR_ADMIN_TOKEN` in `.env`. Without it, channel create/delete endpoints are unrestricted.
+> **Tip:** Generate an admin token with `openssl rand -hex 32` and set it as `HOOKR_ADMIN_TOKEN` in `.env`. Without it, channel management endpoints are unrestricted.
 
 **Managing your server:**
 
@@ -223,7 +224,7 @@ For CI/CD, Docker, or cron, use environment variables instead of the config file
 ```bash
 export HOOKR_SERVER=https://hookr.example.com
 export HOOKR_TOKEN=tok_xyz789                  # channel auth token (for listen/poll/inspect)
-export HOOKR_ADMIN_TOKEN=<your-admin-token>    # admin token (for channel create/delete)
+export HOOKR_ADMIN_TOKEN=<your-admin-token>    # admin token (for channel CRUD)
 
 hookr poll ch_a1b2c3d4 --target http://localhost:3000
 ```
