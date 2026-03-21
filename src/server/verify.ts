@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+const MAX_TIMESTAMP_AGE_SECONDS = 300; // 5 minutes
+
 export function verifyGithubSignature(
   body: string,
   secret: string,
@@ -35,6 +37,10 @@ export function verifyStripeSignature(
 
   if (!timestamp || !signature) return false;
 
+  // Reject replayed webhooks older than 5 minutes
+  const age = Math.abs(Date.now() / 1000 - parseInt(timestamp, 10));
+  if (isNaN(age) || age > MAX_TIMESTAMP_AGE_SECONDS) return false;
+
   const payload = `${timestamp}.${body}`;
   const expected = createHmac("sha256", secret).update(payload).digest("hex");
 
@@ -50,6 +56,10 @@ export function verifySlackSignature(
   timestampHeader: string | undefined,
 ): boolean {
   if (!signatureHeader || !timestampHeader) return false;
+
+  // Reject replayed webhooks older than 5 minutes
+  const age = Math.abs(Date.now() / 1000 - parseInt(timestampHeader, 10));
+  if (isNaN(age) || age > MAX_TIMESTAMP_AGE_SECONDS) return false;
 
   const baseString = `v0:${timestampHeader}:${body}`;
   const expected = `v0=${createHmac("sha256", secret).update(baseString).digest("hex")}`;

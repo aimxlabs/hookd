@@ -132,13 +132,24 @@ Or if already installed globally:
 npm install -g hookr
 ```
 
+Retrieve the admin token from the server (it was auto-generated during deploy):
+```bash
+# Via SSH
+ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'grep HOOKR_ADMIN_TOKEN /opt/hookr/.env'
+```
+
 Then configure and create a channel:
 ```bash
+# Set the admin token (required for channel create/delete on deployed servers)
+export HOOKR_ADMIN_TOKEN=<ADMIN_TOKEN_FROM_SERVER>
+
 hookr login <AUTH_TOKEN> -s https://<DOMAIN>
 hookr channel create -n default -s https://<DOMAIN>
 ```
 
-Capture the **channel ID** and **webhook URL** from the output.
+The admin token is only needed for creating/deleting channels. The channel's auth token (returned by `channel create`) is used for listening, polling, and inspecting events.
+
+Capture the **channel ID**, **webhook URL**, and **auth token** from the output.
 
 ---
 
@@ -310,6 +321,21 @@ hookr is deployed and ready.
 | `stripe` | `Stripe-Signature` | HMAC-SHA256 of `{timestamp}.{body}` | `whsec_...` (Stripe provides it) |
 | `slack` | `X-Slack-Signature` + `X-Slack-Request-Timestamp` | HMAC-SHA256 of `v0:{timestamp}:{body}` | From Slack app settings |
 | `generic` | None | No verification | N/A |
+
+## Security model
+
+hookr has two levels of authentication:
+
+| Token | Env var / flag | Used for | Scope |
+|-------|---------------|----------|-------|
+| **Admin token** | `HOOKR_ADMIN_TOKEN` / `--admin-token` | Channel create, delete | Server-wide |
+| **Channel token** | `HOOKR_TOKEN` / `--token` | Listen, poll, ack, inspect events | Per-channel |
+
+- If `HOOKR_ADMIN_TOKEN` is not set on the server, channel management endpoints are unrestricted (safe for local dev).
+- Webhook providers (GitHub, Stripe, Slack) authenticate via HMAC signature verification — they don't use either token.
+- Webhook payloads are limited to 1 MB.
+- Callback URLs are validated to prevent SSRF (private IPs and metadata endpoints are blocked).
+- Stripe and Slack signatures include replay protection (5-minute timestamp window).
 
 ## Error recovery
 

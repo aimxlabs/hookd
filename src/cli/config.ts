@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { DEFAULT_PORT } from "../shared/constants.js";
@@ -21,8 +21,10 @@ export function loadConfig(): HookrConfig {
 }
 
 export function saveConfig(config: HookrConfig): void {
-  mkdirSync(CONFIG_DIR, { recursive: true });
-  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o600 });
+  // Ensure permissions even if the file already existed
+  chmodSync(CONFIG_FILE, 0o600);
 }
 
 /**

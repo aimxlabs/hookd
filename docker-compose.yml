@@ -5,6 +5,7 @@ services:
       - hookr-data:/data
     environment:
       - HOOKR_PUBLIC_URL=https://${HOOKR_DOMAIN}
+      - HOOKR_ADMIN_TOKEN=${HOOKR_ADMIN_TOKEN:-}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:4801/health').then(r=>{if(!r.ok)process.exit(1)})"]
       interval: 30s

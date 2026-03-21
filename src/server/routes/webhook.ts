@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 import { getDb, schema } from "../../db/index.js";
 import { verifyWebhookSignature } from "../verify.js";
 import { deliverEvent } from "../delivery.js";
-import { EVENT_ID_PREFIX } from "../../shared/constants.js";
+import { EVENT_ID_PREFIX, MAX_BODY_BYTES } from "../../shared/constants.js";
 
 const webhook = new Hono();
 
@@ -23,8 +23,16 @@ webhook.post("/h/:channelId", async (c) => {
     return c.json({ error: "Channel not found" }, 404);
   }
 
-  // Read raw body
+  // Read raw body with size limit
+  const contentLength = parseInt(c.req.header("content-length") ?? "0", 10);
+  if (contentLength > MAX_BODY_BYTES) {
+    return c.json({ error: "Payload too large" }, 413);
+  }
+
   const body = await c.req.text();
+  if (body.length > MAX_BODY_BYTES) {
+    return c.json({ error: "Payload too large" }, 413);
+  }
 
   // Get headers as plain object (lowercased keys)
   const headers: Record<string, string> = {};

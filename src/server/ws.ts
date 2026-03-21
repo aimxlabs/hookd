@@ -42,7 +42,7 @@ export function handleWsMessage(ws: WSContext, data: string): void {
       handleSubscribe(conn, msg.channelId);
       break;
     case "ack":
-      handleAck(msg.eventId);
+      handleAck(conn, msg.eventId);
       break;
     case "ping":
       ws.send(JSON.stringify({ type: "pong" }));
@@ -105,8 +105,23 @@ function handleSubscribe(conn: AgentConnection, channelId: string): void {
   conn.ws.send(JSON.stringify({ type: "subscribed", channelId }));
 }
 
-function handleAck(eventId: string): void {
+function handleAck(conn: AgentConnection, eventId: string): void {
   const db = getDb();
+
+  // Only allow acking events that belong to channels this connection is subscribed to
+  const [event] = db
+    .select({ channelId: schema.events.channelId })
+    .from(schema.events)
+    .where(eq(schema.events.id, eventId))
+    .all();
+
+  if (!event || !conn.channelIds.has(event.channelId)) {
+    conn.ws.send(
+      JSON.stringify({ type: "error", message: "Cannot ack event — not subscribed to its channel" }),
+    );
+    return;
+  }
+
   db.update(schema.events)
     .set({ deliveredAt: Math.floor(Date.now() / 1000) })
     .where(eq(schema.events.id, eventId))

@@ -53,9 +53,13 @@ fi
 
 cd "$HOOKR_DIR"
 
+# Generate an admin token for channel management
+HOOKR_ADMIN_TOKEN=$(openssl rand -hex 32)
+
 # Write .env
 cat > .env <<ENVEOF
 HOOKR_DOMAIN=${HOOKR_DOMAIN}
+HOOKR_ADMIN_TOKEN=${HOOKR_ADMIN_TOKEN}
 ENVEOF
 
 echo "==> Starting hookr with domain ${HOOKR_DOMAIN}..."
@@ -77,9 +81,14 @@ echo "  hookr is deployed!"
 echo ""
 echo "  Health check:  https://${HOOKR_DOMAIN}/health"
 echo "  Webhook URL:   https://${HOOKR_DOMAIN}/h/<channelId>"
+echo "  Admin token:   ${HOOKR_ADMIN_TOKEN}"
 echo ""
 echo "  Note: HTTPS will work once DNS is pointing"
 echo "  to this server's IP address."
+echo ""
+echo "  The admin token is required to create/delete channels."
+echo "  Use it with: hookr channel create -n <name> --admin-token <token>"
+echo "  Or set:      export HOOKR_ADMIN_TOKEN=${HOOKR_ADMIN_TOKEN}"
 echo ""
 echo "  Logs:   cd /opt/hookr && docker compose logs -f"
 echo "  Update: cd /opt/hookr && git pull && docker compose up -d --build"

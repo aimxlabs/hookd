@@ -10,6 +10,7 @@ function prompt(rl: ReturnType<typeof createInterface>, question: string): Promi
 export const setupCommand = new Command("setup")
   .description("Guided setup — connect to your hookr server and create a channel")
   .option("-s, --server <url>", "Server URL (skip the prompt)")
+  .option("--admin-token <token>", "Admin token (or set HOOKR_ADMIN_TOKEN)")
   .action(async (opts) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
 
@@ -101,9 +102,15 @@ export const setupCommand = new Command("setup")
       if (provider) createBody.provider = provider;
       if (secret) createBody.secret = secret;
 
+      const adminToken = opts.adminToken || process.env.HOOKR_ADMIN_TOKEN;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (adminToken) {
+        headers["Authorization"] = `Bearer ${adminToken}`;
+      }
+
       const res = await fetch(`${serverUrl}/api/channels`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(createBody),
         signal: AbortSignal.timeout(10_000),
       });
@@ -111,6 +118,9 @@ export const setupCommand = new Command("setup")
       if (!res.ok) {
         const err = (await res.json()) as any;
         console.error(chalk.red(`\n  Failed to create channel: ${err.error || res.statusText}`));
+        if (res.status === 401) {
+          console.error(chalk.dim("  Hint: set HOOKR_ADMIN_TOKEN or pass --admin-token"));
+        }
         process.exit(1);
       }
 

@@ -141,8 +141,13 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 # Clone and start hookr
 git clone https://github.com/aimxlabs/hookr.git /opt/hookr
 cd /opt/hookr
-echo "HOOKR_DOMAIN=${HOOKR_DOMAIN}" > .env
+ADMIN_TOKEN=$(openssl rand -hex 32)
+cat > .env <<EOF2
+HOOKR_DOMAIN=${HOOKR_DOMAIN}
+HOOKR_ADMIN_TOKEN=${ADMIN_TOKEN}
+EOF2
 docker compose up -d --build
+echo "Admin token: ${ADMIN_TOKEN}"
 USERDATA
 )
 
@@ -252,12 +257,17 @@ curl https://hookr.example.com/health
 # On your local machine (not the server)
 npm install -g hookr
 
+# Set the admin token (retrieve it from the server's .env or cloud-init output)
+export HOOKR_ADMIN_TOKEN=<admin-token-from-server>
+
 # Guided setup — creates a channel, saves server URL + token
 hookr setup -s https://hookr.example.com
 
 # Start receiving webhooks locally
 hookr listen <channelId> --target http://localhost:8080/webhook
 ```
+
+> **Note:** The admin token is only needed for creating/deleting channels. Once you have a channel, the channel's auth token (saved automatically by `hookr setup`) is all you need for `listen`, `poll`, and `inspect`.
 
 ---
 
