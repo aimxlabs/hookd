@@ -22,12 +22,9 @@ function tokenEquals(a: string, b: string): boolean {
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
-/** Extract Bearer token from Authorization header or query param. */
+/** Extract Bearer token from Authorization header. */
 function extractToken(c: { req: any }): string | undefined {
-  return (
-    c.req.header("authorization")?.replace(/^Bearer\s+/i, "") ??
-    c.req.query("token")
-  );
+  return c.req.header("authorization")?.replace(/^Bearer\s+/i, "");
 }
 
 /** Clamp a limit query parameter to [1, MAX_QUERY_LIMIT]. */
@@ -186,8 +183,11 @@ api.post("/api/channels", async (c) => {
   );
 });
 
-// List channels (public — no secrets returned)
+// List channels (admin-protected)
 api.get("/api/channels", (c) => {
+  const denied = requireAdmin(c);
+  if (denied) return denied;
+
   const db = getDb();
   const allChannels = db
     .select({
@@ -204,8 +204,11 @@ api.get("/api/channels", (c) => {
   return c.json(allChannels);
 });
 
-// Get a channel (public — no secrets returned)
+// Get a channel (admin-protected)
 api.get("/api/channels/:id", (c) => {
+  const denied = requireAdmin(c);
+  if (denied) return denied;
+
   const db = getDb();
   const [channel] = db
     .select({
