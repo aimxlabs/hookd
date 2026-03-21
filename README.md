@@ -23,13 +23,20 @@ npx hookr listen ch_a1b2c3d4 --target http://localhost:8080/webhook
 ## How It Works
 
 ```
-GitHub/Stripe/etc.  →  hookr server  →  WebSocket  →  hookr listen  →  your local app
-     (POST)            (stores event)    (real-time)    (CLI agent)      (localhost)
+GitHub/Stripe/etc.  →  hookr server  →  WebSocket     →  hookr listen  →  your local app
+     (POST)            (stores event)    (real-time)       (persistent)     (localhost)
+                                      →  HTTP poll     →  hookr poll    →  cron job
+                                         (on-demand)      (one-shot)
+                                      →  HTTP callback →  POST to URL
+                                         (fallback)
 ```
 
 1. Create a **channel** — get a unique webhook URL
 2. Point your provider (GitHub, Stripe, etc.) at the webhook URL
-3. Run `hookr listen` — events are pushed to your local app in real-time
+3. Consume events via any of three delivery modes:
+   - **`hookr listen`** — real-time WebSocket push (persistent connection)
+   - **`hookr poll`** — HTTP polling (cron-friendly, no persistent connection)
+   - **HTTP callback** — hookr POSTs to a URL you configure
 4. Events are stored for replay and retry if delivery fails
 
 ## Commands
@@ -55,6 +62,13 @@ hookr listen <channelId>       Listen for events and forward them
   --json                       Output JSON to stdout
   --token <token>              Auth token
 
+hookr poll <channelId>         Poll for pending events (cron-friendly)
+  -t, --target <url>           Forward events to this URL
+  --limit <n>                  Max events per poll (default: 100)
+  --after <eventId>            Cursor: only events after this ID
+  --no-ack                     Don't auto-acknowledge fetched events
+  --token <token>              Auth token (required)
+
 hookr login <token>            Save auth token
 ```
 
@@ -65,6 +79,7 @@ hookr login <token>            Save auth token
 - **Event storage** in SQLite for replay and debugging
 - **At-least-once delivery** with ack protocol and retry logic
 - **HTTP callback fallback** when no WebSocket client is connected
+- **HTTP polling** for cron-based agents that can't maintain connections
 - **Self-hosted** — single binary, zero external dependencies
 
 ## Architecture
@@ -83,6 +98,8 @@ GET    /api/channels           List channels
 GET    /api/channels/:id       Get channel details
 DELETE /api/channels/:id       Delete a channel
 GET    /api/channels/:id/events  Recent events
+GET    /api/channels/:id/poll   Poll for undelivered events (requires auth)
+POST   /api/channels/:id/ack    Acknowledge polled events as delivered
 
 POST   /h/:channelId           Receive webhook (this is the URL you give to providers)
 GET    /ws                     WebSocket endpoint for agents
@@ -148,6 +165,13 @@ Then configure OpenClaw to accept the forwarded events in `~/.openclaw/openclaw.
 
 Finally, point GitHub's webhook settings at your hookr URL (`http://your-server:4801/h/ch_a1b2c3d4`). hookr verifies the HMAC-SHA256 signature, then forwards the raw payload to OpenClaw. The Gateway receives it as a wake event and triggers your agent.
 
+**Alternative: Cron-based polling** — if you can't keep a persistent WebSocket connection:
+
+```bash
+# Run every minute via cron — fetches pending events, forwards to OpenClaw, auto-acks
+*/1 * * * * hookr poll ch_a1b2c3d4 --target http://127.0.0.1:18789/hooks/wake --token tok_xyz789
+```
+
 > **Tip:** For Stripe or Slack, just change `--provider stripe` or `--provider slack` and set the matching signing secret. hookr handles each provider's signature format.
 
 ### nanobot
@@ -186,19 +210,23 @@ hookr channel create \
 
 When no WebSocket client is connected, hookr POSTs verified events directly to the callback URL with `X-Hookr-Event-Id` and `X-Hookr-Channel-Id` headers.
 
+**Option C: Cron polling** — no persistent process needed at all
+
+```bash
+# Poll every 5 minutes, pipe events to nanobot
+*/5 * * * * hookr poll ch_a1b2c3d4 --token tok_xyz789 \
+  | while IFS= read -r event; do echo "$event" | jq -r '.body' | nanobot run --stdin; done
+```
+
 ### Any Agent (Generic Pattern)
 
-hookr works with any agent framework. The core pattern:
+hookr works with any agent framework. Pick the delivery mode that fits:
 
-```
-External service  →  POST /h/:channelId  →  hookr verifies + stores
-                                               ↓
-                                          WebSocket push (preferred)
-                                               OR
-                                          HTTP callback (fallback)
-                                               ↓
-                                          Your agent (localhost)
-```
+| Mode | Command | Best for |
+|------|---------|----------|
+| WebSocket | `hookr listen` | Real-time agents with persistent connections |
+| HTTP poll | `hookr poll` | Cron jobs, serverless, ephemeral agents |
+| HTTP callback | `--callback-url` | Agents with their own HTTP server |
 
 **Programmatic usage** — embed hookr in your own agent process:
 
@@ -210,6 +238,32 @@ await startServer({ port: 4801, dbPath: "hookr.db" });
 
 // Or mount the Hono app inside your own server
 const { app, injectWebSocket } = createApp();
+```
+
+**HTTP polling** — fetch events on a schedule (no WebSocket needed):
+
+```typescript
+// Poll for events and acknowledge them
+const res = await fetch("http://localhost:4801/api/channels/ch_.../poll", {
+  headers: { Authorization: "Bearer tok_..." },
+});
+const { events, cursor } = await res.json();
+
+for (const evt of events) {
+  await processWebhook(evt.body, evt.headers);
+}
+
+// Acknowledge so they aren't returned on next poll
+if (events.length > 0) {
+  await fetch("http://localhost:4801/api/channels/ch_.../ack", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer tok_...",
+    },
+    body: JSON.stringify({ eventIds: events.map((e) => e.id) }),
+  });
+}
 ```
 
 **WebSocket client** — connect directly from your agent code:

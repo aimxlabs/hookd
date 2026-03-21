@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, isNull, gt, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { getDb, schema } from "../../db/index.js";
 import {
@@ -113,6 +113,114 @@ api.get("/api/channels/:id/events", (c) => {
     .all();
 
   return c.json(channelEvents);
+});
+
+// Poll for undelivered events (cron-friendly)
+api.get("/api/channels/:id/poll", (c) => {
+  const db = getDb();
+  const channelId = c.req.param("id");
+  const limit = parseInt(c.req.query("limit") ?? "100", 10);
+  const afterCursor = c.req.query("after"); // event ID cursor
+
+  // Auth: require the channel's token
+  const token =
+    c.req.header("authorization")?.replace(/^Bearer\s+/i, "") ??
+    c.req.query("token");
+
+  const [channel] = db
+    .select()
+    .from(schema.channels)
+    .where(eq(schema.channels.id, channelId))
+    .all();
+
+  if (!channel) return c.json({ error: "Channel not found" }, 404);
+  if (!token || token !== channel.authToken) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  // Build query: undelivered events for this channel
+  let conditions = and(
+    eq(schema.events.channelId, channelId),
+    isNull(schema.events.deliveredAt),
+  );
+
+  // If cursor provided, only return events received after that event
+  if (afterCursor) {
+    const [cursorEvent] = db
+      .select({ receivedAt: schema.events.receivedAt })
+      .from(schema.events)
+      .where(eq(schema.events.id, afterCursor))
+      .all();
+
+    if (cursorEvent) {
+      conditions = and(
+        conditions,
+        gt(schema.events.receivedAt, cursorEvent.receivedAt),
+      );
+    }
+  }
+
+  const pendingEvents = db
+    .select()
+    .from(schema.events)
+    .where(conditions!)
+    .orderBy(schema.events.receivedAt)
+    .limit(limit)
+    .all();
+
+  // Parse stored JSON headers back to objects
+  const events = pendingEvents.map((evt) => ({
+    ...evt,
+    headers: JSON.parse(evt.headers) as Record<string, string>,
+  }));
+
+  return c.json({
+    events,
+    cursor: events.length > 0 ? events[events.length - 1].id : null,
+  });
+});
+
+// Acknowledge (mark as delivered) polled events
+api.post("/api/channels/:id/ack", async (c) => {
+  const db = getDb();
+  const channelId = c.req.param("id");
+
+  // Auth: require the channel's token
+  const token =
+    c.req.header("authorization")?.replace(/^Bearer\s+/i, "") ??
+    c.req.query("token");
+
+  const [channel] = db
+    .select()
+    .from(schema.channels)
+    .where(eq(schema.channels.id, channelId))
+    .all();
+
+  if (!channel) return c.json({ error: "Channel not found" }, 404);
+  if (!token || token !== channel.authToken) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const body = await c.req.json<{ eventIds: string[] }>();
+
+  if (!Array.isArray(body.eventIds) || body.eventIds.length === 0) {
+    return c.json({ error: "eventIds array is required" }, 400);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+
+  const result = db
+    .update(schema.events)
+    .set({ deliveredAt: now })
+    .where(
+      and(
+        eq(schema.events.channelId, channelId),
+        inArray(schema.events.id, body.eventIds),
+      ),
+    )
+    .run();
+
+  return c.json({ acknowledged: result.changes });
 });
 
 export default api;

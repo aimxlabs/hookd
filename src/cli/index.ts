@@ -4,6 +4,7 @@ import { serveCommand } from "./commands/serve.js";
 import { channelCommand } from "./commands/channel.js";
 import { listenCommand } from "./commands/listen.js";
 import { loginCommand } from "./commands/login.js";
+import { pollCommand } from "./commands/poll.js";
 
 const program = new Command();
 
@@ -35,5 +36,6 @@ program.addCommand(serveCommand);
 program.addCommand(channelCommand);
 program.addCommand(listenCommand);
 program.addCommand(loginCommand);
+program.addCommand(pollCommand);
 
 export { program };
