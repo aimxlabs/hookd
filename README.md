@@ -71,10 +71,13 @@ hookr channel create           Create a new webhook channel
   --provider <provider>        github | stripe | slack | generic
   --secret <secret>            Webhook signing secret
   --callback-url <url>         HTTP fallback URL
+  --admin-token <token>        Admin token (or set HOOKR_ADMIN_TOKEN)
 
 hookr channel list             List all channels
 hookr channel delete <id>      Delete a channel
+  --admin-token <token>        Admin token (or set HOOKR_ADMIN_TOKEN)
 hookr channel inspect <id>     Show recent events
+  --token <token>              Channel auth token
 
 hookr listen <channelId>       Listen for events and forward them
   -t, --target <url>           Local URL (default: http://localhost:3000)
@@ -124,18 +127,20 @@ Once you run `hookr login <token> -s https://your-server.com`, you won't need to
 The server exposes a REST API for channel management:
 
 ```
-POST   /api/channels           Create a channel
-GET    /api/channels           List channels
-GET    /api/channels/:id       Get channel details
-DELETE /api/channels/:id       Delete a channel
-GET    /api/channels/:id/events  Recent events
-GET    /api/channels/:id/poll   Poll for undelivered events (requires auth)
-POST   /api/channels/:id/ack    Acknowledge polled events as delivered
+POST   /api/channels              Create a channel           (admin token)
+GET    /api/channels              List channels              (public)
+GET    /api/channels/:id          Get channel details        (public, no secrets)
+DELETE /api/channels/:id          Delete a channel           (admin token)
+GET    /api/channels/:id/events   Recent events              (channel token)
+GET    /api/channels/:id/poll     Poll for undelivered events (channel token)
+POST   /api/channels/:id/ack     Acknowledge polled events   (channel token)
 
-POST   /h/:channelId           Receive webhook (this is the URL you give to providers)
-GET    /ws                     WebSocket endpoint for agents
-GET    /health                 Health check
+POST   /h/:channelId             Receive webhook (give this URL to providers)
+GET    /ws                       WebSocket endpoint for agents
+GET    /health                   Health check
 ```
+
+**Authentication:** Endpoints marked "admin token" require `HOOKR_ADMIN_TOKEN` (via `Authorization: Bearer <token>` header). If no admin token is configured on the server, these endpoints are unrestricted. Endpoints marked "channel token" require the channel's auth token (returned when the channel is created).
 
 ### WebSocket Protocol
 
@@ -170,11 +175,13 @@ hookr is designed for a split setup: the **server** runs on a cloud machine with
 ```bash
 git clone https://github.com/aimxlabs/hookr.git && cd hookr
 cp .env.example .env
-# Edit .env — set HOOKR_DOMAIN to your domain
+# Edit .env — set HOOKR_DOMAIN and HOOKR_ADMIN_TOKEN
 docker compose up -d
 ```
 
 That's it. Caddy automatically provisions HTTPS via Let's Encrypt. Visit `https://your-domain.com/health` to verify.
+
+> **Tip:** Generate an admin token with `openssl rand -hex 32` and set it as `HOOKR_ADMIN_TOKEN` in `.env`. Without it, channel create/delete endpoints are unrestricted.
 
 **Managing your server:**
 
@@ -215,7 +222,8 @@ For CI/CD, Docker, or cron, use environment variables instead of the config file
 
 ```bash
 export HOOKR_SERVER=https://hookr.example.com
-export HOOKR_TOKEN=tok_xyz789
+export HOOKR_TOKEN=tok_xyz789                  # channel auth token (for listen/poll/inspect)
+export HOOKR_ADMIN_TOKEN=<your-admin-token>    # admin token (for channel create/delete)
 
 hookr poll ch_a1b2c3d4 --target http://localhost:3000
 ```

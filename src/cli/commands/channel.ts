@@ -5,6 +5,20 @@ import { resolveServerUrl } from "../config.js";
 export const channelCommand = new Command("channel")
   .description("Manage webhook channels");
 
+/** Resolve admin token from flag or HOOKR_ADMIN_TOKEN env var. */
+function resolveAdminToken(flagValue?: string): string | undefined {
+  return flagValue || process.env.HOOKR_ADMIN_TOKEN;
+}
+
+/** Build Authorization header if an admin token is available. */
+function adminHeaders(adminToken?: string): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (adminToken) {
+    headers["Authorization"] = `Bearer ${adminToken}`;
+  }
+  return headers;
+}
+
 channelCommand
   .command("create")
   .description("Create a new webhook channel")
@@ -13,12 +27,14 @@ channelCommand
   .option("--secret <secret>", "Webhook signing secret")
   .option("--callback-url <url>", "HTTP fallback URL for delivery")
   .option("-s, --server <url>", "Server URL")
+  .option("--admin-token <token>", "Admin token (or set HOOKR_ADMIN_TOKEN)")
   .action(async (opts) => {
     const baseUrl = resolveServerUrl(opts.server);
+    const adminToken = resolveAdminToken(opts.adminToken);
     try {
       const res = await fetch(`${baseUrl}/api/channels`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: adminHeaders(adminToken),
         body: JSON.stringify({
           name: opts.name,
           provider: opts.provider,
@@ -30,6 +46,9 @@ channelCommand
       if (!res.ok) {
         const err = await res.json();
         console.error(chalk.red(`Error: ${err.error || res.statusText}`));
+        if (res.status === 401) {
+          console.error(chalk.dim("Hint: set HOOKR_ADMIN_TOKEN or pass --admin-token"));
+        }
         process.exit(1);
       }
 
@@ -85,16 +104,27 @@ channelCommand
   .command("delete <id>")
   .description("Delete a channel")
   .option("-s, --server <url>", "Server URL")
+  .option("--admin-token <token>", "Admin token (or set HOOKR_ADMIN_TOKEN)")
   .action(async (id, opts) => {
     const baseUrl = resolveServerUrl(opts.server);
+    const adminToken = resolveAdminToken(opts.adminToken);
     try {
+      const headers: Record<string, string> = {};
+      if (adminToken) {
+        headers["Authorization"] = `Bearer ${adminToken}`;
+      }
+
       const res = await fetch(`${baseUrl}/api/channels/${id}`, {
         method: "DELETE",
+        headers,
       });
 
       if (!res.ok) {
         const err = await res.json();
         console.error(chalk.red(`Error: ${err.error || res.statusText}`));
+        if (res.status === 401) {
+          console.error(chalk.dim("Hint: set HOOKR_ADMIN_TOKEN or pass --admin-token"));
+        }
         process.exit(1);
       }
 
@@ -110,12 +140,30 @@ channelCommand
   .description("Show recent events for a channel")
   .option("-l, --limit <n>", "Number of events to show", "10")
   .option("-s, --server <url>", "Server URL")
+  .option("--token <token>", "Channel auth token (or set HOOKR_TOKEN)")
   .action(async (id, opts) => {
     const baseUrl = resolveServerUrl(opts.server);
+    const token = opts.token || process.env.HOOKR_TOKEN;
     try {
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch(
         `${baseUrl}/api/channels/${id}/events?limit=${opts.limit}`,
+        { headers },
       );
+
+      if (!res.ok) {
+        const err = await res.json();
+        console.error(chalk.red(`Error: ${err.error || res.statusText}`));
+        if (res.status === 401) {
+          console.error(chalk.dim("Hint: pass --token <channel-token> or set HOOKR_TOKEN"));
+        }
+        process.exit(1);
+      }
+
       const events = await res.json() as any[];
 
       if (events.length === 0) {
