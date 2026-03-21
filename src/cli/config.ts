@@ -9,6 +9,35 @@ const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 export interface HookrConfig {
   serverUrl?: string;
   token?: string;
+  remoteHost?: string;
+  sshKey?: string;
+  sshUser?: string;
+  remoteDir?: string;
+}
+
+export interface RemoteConfig {
+  host: string;
+  sshKey: string;
+  sshUser: string;
+  remoteDir: string;
+}
+
+export function resolveRemoteConfig(flags: Partial<RemoteConfig>): RemoteConfig | null {
+  const config = loadConfig();
+  const host = flags.host || process.env.HOOKR_HOST || config.remoteHost;
+  if (!host) return null;
+  return {
+    host,
+    sshKey:
+      flags.sshKey ||
+      process.env.HOOKR_SSH_KEY ||
+      config.sshKey ||
+      join(homedir(), ".ssh", "hookr-deploy-key.pem"),
+    sshUser:
+      flags.sshUser || process.env.HOOKR_SSH_USER || config.sshUser || "ubuntu",
+    remoteDir:
+      flags.remoteDir || process.env.HOOKR_DIR || config.remoteDir || "/opt/hookr",
+  };
 }
 
 export function loadConfig(): HookrConfig {

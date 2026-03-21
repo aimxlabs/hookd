@@ -6,6 +6,7 @@ import { listenCommand } from "./commands/listen.js";
 import { loginCommand } from "./commands/login.js";
 import { pollCommand } from "./commands/poll.js";
 import { setupCommand } from "./commands/setup.js";
+import { manageCommand } from "./commands/manage/index.js";
 
 const program = new Command();
 
@@ -40,5 +41,6 @@ program.addCommand(listenCommand);
 program.addCommand(loginCommand);
 program.addCommand(pollCommand);
 program.addCommand(setupCommand);
+program.addCommand(manageCommand);
 
 export { program };
