@@ -9,51 +9,43 @@ This guide has step-by-step CLI commands for deploying hookr to a cloud server. 
    - AWS: Access key + secret key (`aws configure`)
    - DigitalOcean: API token (`doctl auth init`)
 
-## Option A: One-command deploy scripts
+## Option A: One-command deploy
 
-The fastest path. These scripts handle everything — creating the server, installing Docker, starting hookr with HTTPS.
+The fastest path. The `hookr deploy` command handles everything — creating the server, installing Docker, starting hookr with HTTPS.
 
 ### AWS
 
 ```bash
-# Install AWS CLI if you don't have it
+# Prerequisites: AWS CLI installed and configured
 # https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-
-# Configure credentials
 aws configure
-# Enter: Access Key ID, Secret Access Key, region (e.g. us-east-1), output format (json)
 
 # Deploy hookr (creates EC2 instance + Elastic IP)
-git clone https://github.com/aimxlabs/hookr.git
-cd hookr
-./deploy/aws.sh hookr.example.com
+hookr deploy aws hookr.example.com
 
-# The script outputs the server's IP address.
-# Point your DNS A record at that IP, then HTTPS works automatically.
+# Optional: specify region and instance type
+hookr deploy aws hookr.example.com us-west-2 --instance-type t3.micro
 ```
 
 ### DigitalOcean
 
 ```bash
-# Install doctl if you don't have it
+# Prerequisites: doctl CLI installed and authenticated
 # https://docs.digitalocean.com/reference/doctl/how-to/install/
-
-# Authenticate
 doctl auth init
-# Enter your API token
 
 # Deploy hookr (creates Droplet + Reserved IP)
-git clone https://github.com/aimxlabs/hookr.git
-cd hookr
-./deploy/digitalocean.sh hookr.example.com
+hookr deploy digitalocean hookr.example.com
 
-# The script outputs the server's IP address.
-# Point your DNS A record at that IP, then HTTPS works automatically.
+# Optional: specify region and size
+hookr deploy digitalocean hookr.example.com sfo1 --size s-1vcpu-2gb
 ```
 
-### After deploying with either script
+### After deploying
 
-The deploy scripts auto-generate an admin token (needed for channel management). Retrieve it from the server:
+The deploy command outputs the server's IP address. Point your DNS A record at that IP, then HTTPS activates automatically.
+
+The deploy also auto-generates an admin token (needed for channel management). Retrieve it from the server:
 
 ```bash
 ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'sudo cat /opt/hookr/.admin-token'
@@ -70,7 +62,7 @@ hookr setup -s https://hookr.example.com
 
 ## Option B: Step-by-step manual commands
 
-If the deploy scripts don't work for your setup, or you want to understand each step, here are the individual commands. These are written for AWS EC2 but the pattern is the same on any provider.
+If `hookr deploy` doesn't work for your setup, or you want to understand each step, here are the individual commands. These are written for AWS EC2 but the pattern is the same on any provider.
 
 ### Step 1: Create the server
 
@@ -315,9 +307,9 @@ hookr manage domain  --host 1.2.3.4 new.example.com  # Change domain
 hookr manage env     --host 1.2.3.4          # Show current .env
 hookr manage cleanup --host 1.2.3.4          # Free disk space (prune Docker)
 
-# Teardown still uses the deploy script (requires aws/doctl CLI)
-./deploy/manage.sh teardown aws              # Destroy all AWS resources
-./deploy/manage.sh teardown digitalocean     # Destroy all DO resources
+# Teardown (requires aws/doctl CLI)
+hookr deploy teardown aws                    # Destroy all AWS resources
+hookr deploy teardown digitalocean           # Destroy all DO resources
 ```
 
 ### Common operations
@@ -361,9 +353,8 @@ hookr manage domain --host 1.2.3.4 new-hookr.example.com
 
 **Tear everything down:**
 ```bash
-# Teardown uses the deploy script (requires aws/doctl CLI)
-./deploy/manage.sh teardown aws
-./deploy/manage.sh teardown digitalocean
+hookr deploy teardown aws
+hookr deploy teardown digitalocean
 ```
 
 ### Saving connection details
