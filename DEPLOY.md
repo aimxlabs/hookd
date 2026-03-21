@@ -261,20 +261,111 @@ hookr listen <channelId> --target http://localhost:8080/webhook
 
 ---
 
+## Managing your hookr server
+
+After deployment, use `deploy/manage.sh` to manage your server. Every command works **remotely** from your local machine (via SSH) — just add `--host <ip>`.
+
+### Quick reference
+
+```bash
+# All commands accept: --host <ip> --key <path> --user <user>
+# Or set env vars: HOOKR_HOST, HOOKR_SSH_KEY, HOOKR_SSH_USER
+
+./deploy/manage.sh status  --host 1.2.3.4    # Container health, disk usage
+./deploy/manage.sh start   --host 1.2.3.4    # Start containers
+./deploy/manage.sh stop    --host 1.2.3.4    # Stop containers
+./deploy/manage.sh restart --host 1.2.3.4    # Restart containers
+./deploy/manage.sh update  --host 1.2.3.4    # Pull latest code, rebuild, restart
+./deploy/manage.sh logs    --host 1.2.3.4    # Tail logs (Ctrl+C to stop)
+./deploy/manage.sh backup  --host 1.2.3.4    # Download database backup
+./deploy/manage.sh restore --host 1.2.3.4 backup.db  # Restore from backup
+./deploy/manage.sh ssh     --host 1.2.3.4    # Open SSH session
+./deploy/manage.sh domain  --host 1.2.3.4 new.example.com  # Change domain
+./deploy/manage.sh env     --host 1.2.3.4    # Show current .env
+./deploy/manage.sh cleanup --host 1.2.3.4    # Free disk space (prune Docker)
+./deploy/manage.sh teardown aws              # Destroy all AWS resources
+./deploy/manage.sh teardown digitalocean     # Destroy all DO resources
+```
+
+### Common operations
+
+**Check if hookr is running:**
+```bash
+./deploy/manage.sh status --host 1.2.3.4
+```
+
+**Update to latest version:**
+```bash
+./deploy/manage.sh update --host 1.2.3.4
+```
+
+**View logs for debugging:**
+```bash
+# All logs, follow mode
+./deploy/manage.sh logs --host 1.2.3.4
+
+# Last 50 lines, no follow
+./deploy/manage.sh logs --host 1.2.3.4 --lines=50 --no-follow
+
+# Just hookr logs (not Caddy)
+./deploy/manage.sh logs --host 1.2.3.4 hookr
+```
+
+**Backup before making changes:**
+```bash
+./deploy/manage.sh backup --host 1.2.3.4 --output=hookr-2024-01-15.db
+```
+
+**Restore from backup:**
+```bash
+./deploy/manage.sh restore --host 1.2.3.4 hookr-2024-01-15.db
+```
+
+**Change domain:**
+```bash
+./deploy/manage.sh domain --host 1.2.3.4 new-hookr.example.com
+```
+
+**Tear everything down:**
+```bash
+# Destroys server, releases IP, cleans up security groups/keys
+./deploy/manage.sh teardown aws
+./deploy/manage.sh teardown digitalocean
+```
+
+### Using environment variables
+
+If you manage hookr regularly, set these in your shell profile to avoid typing flags every time:
+
+```bash
+export HOOKR_HOST="1.2.3.4"
+export HOOKR_SSH_KEY="$HOME/.ssh/hookr-deploy-key.pem"
+export HOOKR_SSH_USER="ubuntu"
+
+# Now just:
+./deploy/manage.sh status
+./deploy/manage.sh update
+./deploy/manage.sh logs
+```
+
+---
+
 ## Troubleshooting
 
 ### "Could not connect" when running hookr setup
 
-The server might still be starting up. Docker image build takes 2-3 minutes on first deploy. SSH into the server and check:
+The server might still be starting up. Docker image build takes 2-3 minutes on first deploy:
 
 ```bash
-ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP>
-# Check cloud-init progress
+./deploy/manage.sh status --host <PUBLIC_IP>
+./deploy/manage.sh logs --host <PUBLIC_IP> --no-follow
+```
+
+Or SSH in and check cloud-init progress:
+
+```bash
+./deploy/manage.sh ssh --host <PUBLIC_IP>
 tail -f /var/log/cloud-init-output.log
-# Check Docker containers
-cd /opt/hookr && docker compose ps
-# Check hookr logs
-docker compose logs hookr
 ```
 
 ### HTTPS not working
@@ -287,8 +378,7 @@ dig hookr.example.com +short
 # Should show your server's IP
 
 # Check Caddy logs for certificate errors
-ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP>
-cd /opt/hookr && docker compose logs caddy
+./deploy/manage.sh logs --host <PUBLIC_IP> caddy --no-follow
 ```
 
 ### "Permission denied" on SSH
@@ -297,51 +387,10 @@ Make sure the key file has correct permissions:
 
 ```bash
 chmod 600 ~/.ssh/hookr-deploy-key.pem
-ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP>  # AWS uses 'ubuntu' user
 ```
 
-### Updating hookr
+### Server running out of disk space
 
 ```bash
-ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP>
-cd /opt/hookr
-git pull
-docker compose up -d --build
-```
-
----
-
-## Tearing down
-
-### AWS
-
-```bash
-# Find and terminate the instance
-INSTANCE_ID=$(aws ec2 describe-instances \
-  --region "$REGION" \
-  --filters "Name=tag:Name,Values=hookr-server" "Name=instance-state-name,Values=running" \
-  --query "Instances[0].InstanceId" \
-  --output text)
-
-aws ec2 terminate-instances --region "$REGION" --instance-ids "$INSTANCE_ID"
-
-# Release the Elastic IP
-ALLOC_ID=$(aws ec2 describe-addresses \
-  --region "$REGION" \
-  --filters "Name=tag:Name,Values=hookr-server" \
-  --query "Addresses[0].AllocationId" \
-  --output text)
-
-aws ec2 release-address --region "$REGION" --allocation-id "$ALLOC_ID"
-
-# Optionally delete the security group and key pair
-aws ec2 delete-security-group --region "$REGION" --group-name "hookr-server"
-aws ec2 delete-key-pair --region "$REGION" --key-name "hookr-deploy-key"
-```
-
-### DigitalOcean
-
-```bash
-doctl compute droplet delete hookr-server --force
-doctl compute reserved-ip list --format IP --no-header | xargs -I{} doctl compute reserved-ip delete {} --force
+./deploy/manage.sh cleanup --host <PUBLIC_IP>
 ```
