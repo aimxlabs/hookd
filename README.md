@@ -8,11 +8,12 @@ AI agents can't easily receive webhooks — they don't run stable HTTP servers. 
 
 The hookr server typically runs on a cloud server (AWS, DigitalOcean, etc.) so it can receive webhooks from the internet. You connect to it from your local machine.
 
-**On your server:**
+**On your server (3 commands):**
 
 ```bash
-npm install -g hookr
-hookr serve --public-url https://hookr.example.com
+git clone https://github.com/aimxlabs/hookr.git && cd hookr
+cp .env.example .env    # edit: set HOOKR_DOMAIN=your-domain.com
+docker compose up -d
 ```
 
 **On your local machine:**
@@ -156,35 +157,54 @@ Agents connect via WebSocket and subscribe to channels:
 
 hookr is designed for a split setup: the **server** runs on a cloud machine with a public IP, and you **connect from your local machine** (or agent) to receive events.
 
-### Basic deployment (any VPS)
+### Docker deployment (recommended)
+
+**Prerequisites:**
+- A VPS (AWS EC2, DigitalOcean droplet, etc.) with Docker installed
+- A domain name with a DNS A record pointing to the server's IP
+
+**Deploy:**
 
 ```bash
-# On your server (AWS EC2, DigitalOcean droplet, etc.)
-npm install -g hookr
-hookr serve --public-url https://hookr.example.com
+git clone https://github.com/aimxlabs/hookr.git && cd hookr
+cp .env.example .env
+# Edit .env — set HOOKR_DOMAIN to your domain
+docker compose up -d
 ```
 
-You'll need to put hookr behind a reverse proxy (Nginx, Caddy) for HTTPS. Example with Caddy:
+That's it. Caddy automatically provisions HTTPS via Let's Encrypt. Visit `https://your-domain.com/health` to verify.
 
-```
-# /etc/caddy/Caddyfile
-hookr.example.com {
-    reverse_proxy localhost:4801
-}
-```
+**Managing your server:**
 
-Caddy automatically provisions TLS certificates. Nginx works too — just proxy to `localhost:4801`.
+```bash
+# View logs
+docker compose logs -f hookr
+
+# Update to latest version
+git pull && docker compose up -d --build
+
+# Backup the database
+docker compose exec hookr node -e "
+  require('child_process').execSync('cp /data/hookr.db /data/hookr-backup.db')
+"
+```
 
 ### Connecting from your local machine
 
 ```bash
-# Save your server URL and token once
-hookr login tok_xyz789 -s https://hookr.example.com
+# Guided setup — creates a channel, saves server URL and token
+hookr setup -s https://your-domain.com
 
 # All future commands use the saved config automatically
 hookr channel list
 hookr listen ch_a1b2c3d4 --target http://localhost:3000
 hookr poll ch_a1b2c3d4
+```
+
+Or save config manually:
+
+```bash
+hookr login tok_xyz789 -s https://your-domain.com
 ```
 
 ### Environment variables
@@ -194,10 +214,20 @@ For CI/CD, Docker, or cron, use environment variables instead of the config file
 ```bash
 export HOOKR_SERVER=https://hookr.example.com
 export HOOKR_TOKEN=tok_xyz789
-export HOOKR_PUBLIC_URL=https://hookr.example.com  # server-side only
 
 hookr poll ch_a1b2c3d4 --target http://localhost:3000
 ```
+
+### Manual deployment (without Docker)
+
+If you prefer not to use Docker:
+
+```bash
+npm install -g hookr
+hookr serve --public-url https://hookr.example.com
+```
+
+You'll need to put hookr behind a reverse proxy (Nginx, Caddy) for HTTPS and manage the process yourself (systemd, pm2, etc.).
 
 ## Integration Guides
 

@@ -1,0 +1,3 @@
+{$HOOKR_DOMAIN} {
+    reverse_proxy hookr:4801
+}

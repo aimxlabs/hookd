@@ -1,0 +1,32 @@
+services:
+  hookr:
+    build: .
+    volumes:
+      - hookr-data:/data
+    environment:
+      - HOOKR_PUBLIC_URL=https://${HOOKR_DOMAIN}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4801/health').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - HOOKR_DOMAIN=${HOOKR_DOMAIN}
+    restart: unless-stopped
+
+volumes:
+  hookr-data:
+  caddy-data:
+  caddy-config:
