@@ -105,6 +105,134 @@ Agents connect via WebSocket and subscribe to channels:
 { "type": "event", "eventId": "evt_...", "channelId": "ch_...", "headers": {...}, "body": "...", "method": "POST", "ip": "..." }
 ```
 
+## Integration Guides
+
+hookr is designed as the webhook ingress layer for self-hosted AI agents. Below are step-by-step guides for the most popular agent frameworks.
+
+### OpenClaw (Clawdbot)
+
+OpenClaw's Gateway has a built-in hooks endpoint, but it only supports bearer-token auth — it can't verify GitHub/Stripe HMAC signatures natively. hookr handles signature verification and forwards verified payloads to the Gateway.
+
+**Flow:** `GitHub → hookr (public) → hookr listen → OpenClaw Gateway (local)`
+
+```bash
+# 1. Start hookr (on a machine with a public IP, or use a tunnel)
+hookr serve --port 4801
+
+# 2. Create a channel with signature verification
+hookr channel create \
+  --name github-deploys \
+  --provider github \
+  --secret "$GITHUB_WEBHOOK_SECRET"
+# => Channel: ch_a1b2c3d4
+# => Webhook URL: http://your-server:4801/h/ch_a1b2c3d4
+# => Token: tok_xyz789
+
+# 3. Forward events to OpenClaw's Gateway hooks endpoint
+hookr listen ch_a1b2c3d4 \
+  --target http://127.0.0.1:18789/hooks/wake \
+  --token tok_xyz789
+```
+
+Then configure OpenClaw to accept the forwarded events in `~/.openclaw/openclaw.json`:
+
+```json
+{
+  "hooks": {
+    "enabled": true,
+    "token": "your-openclaw-hook-token",
+    "path": "/hooks"
+  }
+}
+```
+
+Finally, point GitHub's webhook settings at your hookr URL (`http://your-server:4801/h/ch_a1b2c3d4`). hookr verifies the HMAC-SHA256 signature, then forwards the raw payload to OpenClaw. The Gateway receives it as a wake event and triggers your agent.
+
+> **Tip:** For Stripe or Slack, just change `--provider stripe` or `--provider slack` and set the matching signing secret. hookr handles each provider's signature format.
+
+### nanobot
+
+nanobot doesn't have an HTTP webhook receiver yet (it's [on the roadmap](https://github.com/HKUDS/nanobot/discussions/431)). hookr fills this gap with two approaches.
+
+**Option A: JSON stdout** — pipe events into a handler script
+
+```bash
+# 1. Start hookr + create a channel (same as above)
+hookr serve --port 4801
+hookr channel create --name github-issues --provider github --secret "$SECRET"
+
+# 2. Listen in JSON mode and pipe to a script
+hookr listen ch_a1b2c3d4 --json --token tok_xyz789 \
+  | while IFS= read -r event; do
+      # Extract the event body and pass it to nanobot
+      echo "$event" | jq -r '.body' | nanobot run --stdin
+    done
+```
+
+Each webhook event is emitted as a single JSON line with fields `eventId`, `channelId`, `headers`, `body`, `method`, and `ip`.
+
+**Option B: HTTP callback** — use hookr's built-in fallback
+
+If you run a small local HTTP server that bridges to nanobot, you can skip the CLI entirely:
+
+```bash
+# Create a channel with a callback URL (no hookr listen needed)
+hookr channel create \
+  --name stripe-payments \
+  --provider stripe \
+  --secret "$STRIPE_WEBHOOK_SECRET" \
+  --callback-url http://127.0.0.1:9090/nanobot-bridge
+```
+
+When no WebSocket client is connected, hookr POSTs verified events directly to the callback URL with `X-Hookr-Event-Id` and `X-Hookr-Channel-Id` headers.
+
+### Any Agent (Generic Pattern)
+
+hookr works with any agent framework. The core pattern:
+
+```
+External service  →  POST /h/:channelId  →  hookr verifies + stores
+                                               ↓
+                                          WebSocket push (preferred)
+                                               OR
+                                          HTTP callback (fallback)
+                                               ↓
+                                          Your agent (localhost)
+```
+
+**Programmatic usage** — embed hookr in your own agent process:
+
+```typescript
+import { createApp, startServer } from "hookr";
+
+// Start hookr as part of your agent
+await startServer({ port: 4801, dbPath: "hookr.db" });
+
+// Or mount the Hono app inside your own server
+const { app, injectWebSocket } = createApp();
+```
+
+**WebSocket client** — connect directly from your agent code:
+
+```typescript
+import WebSocket from "ws";
+
+const ws = new WebSocket("ws://localhost:4801/ws");
+ws.on("open", () => {
+  ws.send(JSON.stringify({ type: "auth", token: "tok_..." }));
+  ws.send(JSON.stringify({ type: "subscribe", channelId: "ch_..." }));
+});
+ws.on("message", (data) => {
+  const msg = JSON.parse(data.toString());
+  if (msg.type === "event") {
+    // Process the webhook payload
+    handleWebhook(msg.body, msg.headers);
+    // Acknowledge to prevent retries
+    ws.send(JSON.stringify({ type: "ack", eventId: msg.eventId }));
+  }
+});
+```
+
 ## Development
 
 ```bash
