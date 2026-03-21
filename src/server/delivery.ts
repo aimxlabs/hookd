@@ -41,6 +41,31 @@ export async function deliverEvent(event: WebhookEvent): Promise<void> {
   }
 }
 
+/** Headers that are safe to forward from the original webhook to the callback. */
+const FORWARDED_HEADER_ALLOWLIST = new Set([
+  "content-type",
+  "x-github-event",
+  "x-github-delivery",
+  "x-hub-signature-256",
+  "x-stripe-webhook-id",
+  "x-slack-signature",
+  "x-slack-request-timestamp",
+  "user-agent",
+]);
+
+/** Pick only safe headers from the original webhook to forward. */
+function safeHeaders(
+  raw: Record<string, string>,
+): Record<string, string> {
+  const safe: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (FORWARDED_HEADER_ALLOWLIST.has(key.toLowerCase())) {
+      safe[key] = value;
+    }
+  }
+  return safe;
+}
+
 async function deliverViaHttp(
   callbackUrl: string,
   event: WebhookEvent,
@@ -52,7 +77,11 @@ async function deliverViaHttp(
         "Content-Type": "application/json",
         "X-Hookr-Event-Id": event.id,
         "X-Hookr-Channel-Id": event.channelId,
-        ...event.headers,
+        ...safeHeaders(
+          typeof event.headers === "string"
+            ? JSON.parse(event.headers)
+            : event.headers,
+        ),
       },
       body: event.body,
       signal: AbortSignal.timeout(10_000),

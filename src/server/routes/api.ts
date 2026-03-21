@@ -1,17 +1,110 @@
 import { Hono } from "hono";
 import { eq, desc, and, isNull, gt, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { timingSafeEqual } from "node:crypto";
 import { getDb, schema } from "../../db/index.js";
 import {
   CHANNEL_ID_PREFIX,
   TOKEN_PREFIX,
+  MAX_QUERY_LIMIT,
 } from "../../shared/constants.js";
 import type { Provider } from "../../shared/types.js";
 
 const api = new Hono();
 
+// ── Helpers ──────────────────────────────────────────────────────
+
+/** Constant-time string comparison for auth tokens. */
+function tokenEquals(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+/** Extract Bearer token from Authorization header or query param. */
+function extractToken(c: { req: any }): string | undefined {
+  return (
+    c.req.header("authorization")?.replace(/^Bearer\s+/i, "") ??
+    c.req.query("token")
+  );
+}
+
+/** Clamp a limit query parameter to [1, MAX_QUERY_LIMIT]. */
+function clampLimit(raw: string | undefined, fallback: number): number {
+  const n = parseInt(raw ?? String(fallback), 10);
+  if (isNaN(n) || n < 1) return fallback;
+  return Math.min(n, MAX_QUERY_LIMIT);
+}
+
+/**
+ * Validate a callback URL to prevent SSRF.
+ * Rejects private/reserved IPs, metadata endpoints, and non-HTTP(S) schemes.
+ */
+function isValidCallbackUrl(raw: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+
+  // Only allow http(s)
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+
+  const hostname = url.hostname.toLowerCase();
+
+  // Block cloud metadata endpoints
+  if (hostname === "169.254.169.254" || hostname === "metadata.google.internal") {
+    return false;
+  }
+
+  // Block localhost / loopback
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]" ||
+    hostname === "0.0.0.0"
+  ) {
+    return false;
+  }
+
+  // Block private IPv4 ranges
+  const ipv4Match = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (ipv4Match) {
+    const [, a, b] = ipv4Match.map(Number);
+    if (a === 10) return false;                          // 10.0.0.0/8
+    if (a === 172 && b >= 16 && b <= 31) return false;   // 172.16.0.0/12
+    if (a === 192 && b === 168) return false;             // 192.168.0.0/16
+    if (a === 169 && b === 254) return false;             // 169.254.0.0/16 link-local
+  }
+
+  return true;
+}
+
+/**
+ * Require admin token for management endpoints.
+ * Admin token is set via HOOKR_ADMIN_TOKEN env var.
+ * If no admin token is configured, management endpoints are unrestricted
+ * (assumes localhost-only access).
+ */
+function requireAdmin(c: { req: any }): Response | null {
+  const adminToken = process.env.HOOKR_ADMIN_TOKEN;
+  if (!adminToken) return null; // No admin token configured — allow (local dev)
+
+  const provided = extractToken(c);
+  if (!provided || !tokenEquals(provided, adminToken)) {
+    return c.json({ error: "Unauthorized — admin token required" }, 401) as any;
+  }
+  return null;
+}
+
+// ── Channel CRUD (admin-protected) ──────────────────────────────
+
 // Create a channel
 api.post("/api/channels", async (c) => {
+  const denied = requireAdmin(c);
+  if (denied) return denied;
+
   const body = await c.req.json<{
     name: string;
     provider?: Provider;
@@ -19,8 +112,19 @@ api.post("/api/channels", async (c) => {
     callbackUrl?: string;
   }>();
 
-  if (!body.name) {
+  if (!body.name || typeof body.name !== "string") {
     return c.json({ error: "name is required" }, 400);
+  }
+
+  if (body.name.length > 256) {
+    return c.json({ error: "name must be 256 characters or fewer" }, 400);
+  }
+
+  if (body.callbackUrl && !isValidCallbackUrl(body.callbackUrl)) {
+    return c.json(
+      { error: "Invalid callbackUrl — must be a public HTTP(S) URL" },
+      400,
+    );
   }
 
   const db = getDb();
@@ -50,7 +154,7 @@ api.post("/api/channels", async (c) => {
   return c.json(channel, 201);
 });
 
-// List channels
+// List channels (public — no secrets returned)
 api.get("/api/channels", (c) => {
   const db = getDb();
   const allChannels = db
@@ -68,11 +172,18 @@ api.get("/api/channels", (c) => {
   return c.json(allChannels);
 });
 
-// Get a channel
+// Get a channel (public — no secrets returned)
 api.get("/api/channels/:id", (c) => {
   const db = getDb();
   const [channel] = db
-    .select()
+    .select({
+      id: schema.channels.id,
+      name: schema.channels.name,
+      provider: schema.channels.provider,
+      callbackUrl: schema.channels.callbackUrl,
+      createdAt: schema.channels.createdAt,
+      updatedAt: schema.channels.updatedAt,
+    })
     .from(schema.channels)
     .where(eq(schema.channels.id, c.req.param("id")))
     .all();
@@ -81,11 +192,14 @@ api.get("/api/channels/:id", (c) => {
   return c.json(channel);
 });
 
-// Delete a channel
+// Delete a channel (admin-protected)
 api.delete("/api/channels/:id", (c) => {
+  const denied = requireAdmin(c);
+  if (denied) return denied;
+
   const db = getDb();
   const [channel] = db
-    .select()
+    .select({ id: schema.channels.id })
     .from(schema.channels)
     .where(eq(schema.channels.id, c.req.param("id")))
     .all();
@@ -99,15 +213,31 @@ api.delete("/api/channels/:id", (c) => {
   return c.json({ deleted: true });
 });
 
-// Get recent events for a channel
+// ── Event access (channel-token-protected) ──────────────────────
+
+// Get recent events for a channel (requires channel token)
 api.get("/api/channels/:id/events", (c) => {
   const db = getDb();
-  const limit = parseInt(c.req.query("limit") ?? "20", 10);
+  const channelId = c.req.param("id");
+  const limit = clampLimit(c.req.query("limit"), 20);
+
+  const token = extractToken(c);
+
+  const [channel] = db
+    .select()
+    .from(schema.channels)
+    .where(eq(schema.channels.id, channelId))
+    .all();
+
+  if (!channel) return c.json({ error: "Channel not found" }, 404);
+  if (!token || !tokenEquals(token, channel.authToken)) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
 
   const channelEvents = db
     .select()
     .from(schema.events)
-    .where(eq(schema.events.channelId, c.req.param("id")))
+    .where(eq(schema.events.channelId, channelId))
     .orderBy(desc(schema.events.receivedAt))
     .limit(limit)
     .all();
@@ -119,13 +249,10 @@ api.get("/api/channels/:id/events", (c) => {
 api.get("/api/channels/:id/poll", (c) => {
   const db = getDb();
   const channelId = c.req.param("id");
-  const limit = parseInt(c.req.query("limit") ?? "100", 10);
+  const limit = clampLimit(c.req.query("limit"), 100);
   const afterCursor = c.req.query("after"); // event ID cursor
 
-  // Auth: require the channel's token
-  const token =
-    c.req.header("authorization")?.replace(/^Bearer\s+/i, "") ??
-    c.req.query("token");
+  const token = extractToken(c);
 
   const [channel] = db
     .select()
@@ -134,7 +261,7 @@ api.get("/api/channels/:id/poll", (c) => {
     .all();
 
   if (!channel) return c.json({ error: "Channel not found" }, 404);
-  if (!token || token !== channel.authToken) {
+  if (!token || !tokenEquals(token, channel.authToken)) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
@@ -185,10 +312,7 @@ api.post("/api/channels/:id/ack", async (c) => {
   const db = getDb();
   const channelId = c.req.param("id");
 
-  // Auth: require the channel's token
-  const token =
-    c.req.header("authorization")?.replace(/^Bearer\s+/i, "") ??
-    c.req.query("token");
+  const token = extractToken(c);
 
   const [channel] = db
     .select()
@@ -197,7 +321,7 @@ api.post("/api/channels/:id/ack", async (c) => {
     .all();
 
   if (!channel) return c.json({ error: "Channel not found" }, 404);
-  if (!token || token !== channel.authToken) {
+  if (!token || !tokenEquals(token, channel.authToken)) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
@@ -224,3 +348,4 @@ api.post("/api/channels/:id/ack", async (c) => {
 });
 
 export default api;
+export { isValidCallbackUrl, tokenEquals };
