@@ -51,6 +51,21 @@ cd hookr
 # Point your DNS A record at that IP, then HTTPS works automatically.
 ```
 
+### After deploying with either script
+
+The deploy scripts auto-generate an admin token (needed to create/delete channels). Retrieve it from the server:
+
+```bash
+ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'grep HOOKR_ADMIN_TOKEN /opt/hookr/.env'
+```
+
+Then set it locally before running `hookr setup`:
+
+```bash
+export HOOKR_ADMIN_TOKEN=<token-from-above>
+hookr setup -s https://hookr.example.com
+```
+
 ---
 
 ## Option B: Step-by-step manual commands
@@ -257,8 +272,11 @@ curl https://hookr.example.com/health
 # On your local machine (not the server)
 npm install -g hookr
 
-# Set the admin token (retrieve it from the server's .env or cloud-init output)
-export HOOKR_ADMIN_TOKEN=<admin-token-from-server>
+# Retrieve the admin token from the server's .env
+ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'grep HOOKR_ADMIN_TOKEN /opt/hookr/.env'
+
+# Set it locally
+export HOOKR_ADMIN_TOKEN=<admin-token-from-above>
 
 # Guided setup — creates a channel, saves server URL + token
 hookr setup -s https://hookr.example.com

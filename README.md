@@ -12,7 +12,7 @@ The hookr server typically runs on a cloud server (AWS, DigitalOcean, etc.) so i
 
 ```bash
 git clone https://github.com/aimxlabs/hookr.git && cd hookr
-cp .env.example .env    # edit: set HOOKR_DOMAIN=your-domain.com
+cp .env.example .env    # edit: set HOOKR_DOMAIN and HOOKR_ADMIN_TOKEN
 docker compose up -d
 ```
 
@@ -274,7 +274,7 @@ Then configure OpenClaw to accept the forwarded events in `~/.openclaw/openclaw.
 }
 ```
 
-Finally, point GitHub's webhook settings at your hookr URL (`http://your-server:4801/h/ch_a1b2c3d4`). hookr verifies the HMAC-SHA256 signature, then forwards the raw payload to OpenClaw. The Gateway receives it as a wake event and triggers your agent.
+Finally, point GitHub's webhook settings at your hookr URL (`https://hookr.example.com/h/ch_a1b2c3d4`). hookr verifies the HMAC-SHA256 signature, then forwards the raw payload to OpenClaw. The Gateway receives it as a wake event and triggers your agent.
 
 **Alternative: Cron-based polling** — if you can't keep a persistent WebSocket connection:
 
@@ -312,7 +312,8 @@ hookr channel create \
   --name stripe-payments \
   --provider stripe \
   --secret "$STRIPE_WEBHOOK_SECRET" \
-  --callback-url http://127.0.0.1:9090/nanobot-bridge
+  --callback-url http://127.0.0.1:9090/nanobot-bridge \
+  --admin-token "$HOOKR_ADMIN_TOKEN"
 ```
 
 When no WebSocket client is connected, hookr POSTs verified events directly to the callback URL with `X-Hookr-Event-Id` and `X-Hookr-Channel-Id` headers.
