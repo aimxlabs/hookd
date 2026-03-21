@@ -95,6 +95,16 @@ hookr poll <channelId>         Poll for pending events (cron-friendly)
 hookr login <token>            Save server URL and auth token
   -s, --server <url>           Server URL to save
 
+hookr deploy <command>         Provision or tear down a cloud hookr server
+  aws <domain> [region]        Deploy to AWS EC2 (~$4-9/month, ~5 min)
+    --instance-type <type>     EC2 instance type (default: t3.small)
+    --key-name <name>          SSH key pair name (default: hookr-deploy-key)
+    --sg-name <name>           Security group name (default: hookr-server)
+  digitalocean <domain> [region]  Deploy to DigitalOcean (~$6/month, ~3 min)
+    --size <size>              Droplet size slug (default: s-1vcpu-1gb)
+    --name <name>              Droplet name (default: hookr-server)
+  teardown <provider> [region] Destroy server and all cloud resources
+
 hookr manage <command>         Manage a remote hookr server via SSH
   --host <host>                Server hostname or IP (or set HOOKR_HOST)
   --key <path>                 SSH private key path
@@ -185,7 +195,15 @@ Agents connect via WebSocket and subscribe to channels:
 
 hookr is designed for a split setup: the **server** runs on a cloud machine with a public IP, and you **connect from your local machine** (or agent) to receive events.
 
-**One-command deploy scripts** are available for AWS and DigitalOcean — see **[DEPLOY.md](./DEPLOY.md)** for full step-by-step instructions (designed to be followed by an AI agent with cloud API credentials).
+**One-command deploy** via the CLI for AWS and DigitalOcean — see **[DEPLOY.md](./DEPLOY.md)** for full step-by-step instructions (designed to be followed by an AI agent with cloud API credentials).
+
+```bash
+# Deploy to AWS EC2
+hookr deploy aws hookr.example.com
+
+# Deploy to DigitalOcean
+hookr deploy digitalocean hookr.example.com
+```
 
 ### Docker deployment (recommended)
 

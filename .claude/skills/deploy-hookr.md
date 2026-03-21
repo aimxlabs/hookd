@@ -35,25 +35,19 @@ Do NOT ask about:
 
 ---
 
-### Phase 2: Clone and deploy the server
-
-```bash
-# Clone the repo if not already present
-git clone https://github.com/aimxlabs/hookr.git /tmp/hookr 2>/dev/null || true
-cd /tmp/hookr
-```
+### Phase 2: Deploy the server
 
 **For AWS:**
 ```bash
-./deploy/aws.sh <DOMAIN> <REGION>
+hookr deploy aws <DOMAIN> <REGION>
 ```
 
 **For DigitalOcean:**
 ```bash
-./deploy/digitalocean.sh <DOMAIN>
+hookr deploy digitalocean <DOMAIN> <REGION>
 ```
 
-Capture the output — extract the **public IP** and **instance ID** from the script output.
+Capture the output — extract the **public IP** and **instance ID** from the command output.
 
 ---
 
@@ -302,11 +296,9 @@ hookr is deployed and ready.
 
 | File | Purpose |
 |------|---------|
-| `deploy/aws.sh` | One-command AWS EC2 deployment |
-| `deploy/digitalocean.sh` | One-command DigitalOcean deployment |
-| `deploy/cloud-init.sh` | Server provisioning (Docker, hookr, Caddy) |
-| `deploy/manage.sh` | Cloud teardown only (AWS/DigitalOcean resource cleanup) |
-| `src/cli/commands/manage/` | Remote server management via `hookr manage` (status, logs, backup, update, etc.) |
+| `src/cli/commands/deploy/` | `hookr deploy` — AWS/DigitalOcean provisioning + teardown |
+| `deploy/cloud-init.sh` | Server provisioning (Docker, hookr, Caddy) — runs on remote VM |
+| `src/cli/commands/manage/` | `hookr manage` — remote server management via SSH (status, logs, backup, update, etc.) |
 | `src/server/verify.ts` | Signature verification (GitHub, Stripe, Slack) |
 | `src/cli/commands/setup.ts` | Interactive setup wizard |
 | `src/cli/commands/channel.ts` | Channel CRUD (create, list, inspect, delete) |
@@ -340,7 +332,7 @@ hookr has two levels of authentication:
 
 ## Error recovery
 
-- **Deploy script fails**: Check AWS/DO credentials, try `aws sts get-caller-identity`
+- **Deploy command fails**: Check AWS/DO credentials, try `aws sts get-caller-identity`
 - **Health check times out**: SSH in, check `tail -f /var/log/cloud-init-output.log`
 - **HTTPS not working**: Verify DNS with `dig <DOMAIN>`, check Caddy logs via `hookr manage logs --service caddy --no-follow`
 - **Webhook verification fails**: Ensure the signing secret matches exactly what the provider expects

@@ -7,6 +7,7 @@ import { loginCommand } from "./commands/login.js";
 import { pollCommand } from "./commands/poll.js";
 import { setupCommand } from "./commands/setup.js";
 import { manageCommand } from "./commands/manage/index.js";
+import { deployCommand } from "./commands/deploy/index.js";
 
 const program = new Command();
 
@@ -42,5 +43,6 @@ program.addCommand(loginCommand);
 program.addCommand(pollCommand);
 program.addCommand(setupCommand);
 program.addCommand(manageCommand);
+program.addCommand(deployCommand);
 
 export { program };
