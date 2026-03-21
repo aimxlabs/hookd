@@ -13,8 +13,9 @@ export const awsSubcommand = new Command("aws")
   .option("--instance-type <type>", "EC2 instance type", "t3.small")
   .option("--key-name <name>", "SSH key pair name", "hookr-deploy-key")
   .option("--sg-name <name>", "Security group name", "hookr-server")
+  .option("--repo <url>", "Git repository URL for hookr source", "https://github.com/aimxlabs/hookr.git")
   .action(async (domain: string, region: string, opts) => {
-    const { instanceType, keyName, sgName } = opts;
+    const { instanceType, keyName, sgName, repo } = opts;
 
     console.log();
     console.log(chalk.bold("==>") + " Deploying hookr to AWS EC2");
@@ -162,7 +163,7 @@ export const awsSubcommand = new Command("aws")
 
     // ── Step 4: Launch Instance ────────────────────────────────────
     process.stdout.write(chalk.blue("==>") + " Launching EC2 instance...\n");
-    const userData = Buffer.from(cloudInitScript(domain)).toString("base64");
+    const userData = Buffer.from(cloudInitScript(domain, repo)).toString("base64");
 
     const launchResult = await run("aws", [
       "ec2",
@@ -177,6 +178,7 @@ export const awsSubcommand = new Command("aws")
       keyName,
       "--security-group-ids",
       sgId,
+      "--associate-public-ip-address",
       "--user-data",
       userData,
       "--block-device-mappings",

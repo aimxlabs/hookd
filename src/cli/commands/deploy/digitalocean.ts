@@ -13,8 +13,9 @@ export const digitaloceanSubcommand = new Command("digitalocean")
   .argument("[region]", "Droplet region", "nyc1")
   .option("--size <size>", "Droplet size slug", "s-1vcpu-1gb")
   .option("--name <name>", "Droplet name", "hookr-server")
+  .option("--repo <url>", "Git repository URL for hookr source", "https://github.com/aimxlabs/hookr.git")
   .action(async (domain: string, region: string, opts) => {
-    const { size, name } = opts;
+    const { size, name, repo } = opts;
 
     console.log();
     console.log(chalk.bold("==>") + " Deploying hookr to DigitalOcean");
@@ -72,7 +73,7 @@ export const digitaloceanSubcommand = new Command("digitalocean")
 
     // ── Step 2: Create Droplet ─────────────────────────────────────
     process.stdout.write(chalk.blue("==>") + " Creating Droplet (this may take a minute)...\n");
-    const userData = cloudInitScript(domain);
+    const userData = cloudInitScript(domain, repo);
 
     const dropletResult = await run("doctl", [
       "compute",
