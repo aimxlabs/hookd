@@ -94,6 +94,28 @@ hookr poll <channelId>         Poll for pending events (cron-friendly)
 
 hookr login <token>            Save server URL and auth token
   -s, --server <url>           Server URL to save
+
+hookr manage <command>         Manage a remote hookr server via SSH
+  --host <host>                Server hostname or IP (or set HOOKR_HOST)
+  --key <path>                 SSH private key path
+  --user <name>                SSH user (default: ubuntu)
+  --dir <path>                 Remote hookr directory (default: /opt/hookr)
+
+  Subcommands:
+    init                       Save SSH connection details
+    status                     Server status, health, and disk usage
+    start / stop / restart     Container lifecycle
+    update                     Pull latest code, rebuild, restart
+    logs                       View container logs (follows by default)
+      --lines <n>              Lines to show (default: 100)
+      --no-follow              Don't follow log output
+    backup                     Download database backup
+      --output <path>          Local path for backup file
+    restore <file>             Upload and restore a database backup
+    ssh                        Open interactive SSH session
+    cleanup                    Remove unused Docker images/volumes
+    domain <name>              Update server domain name
+    env                        Show server environment variables
 ```
 
 ### Configuration
@@ -187,16 +209,14 @@ That's it. Caddy automatically provisions HTTPS via Let's Encrypt. Visit `https:
 **Managing your server:**
 
 ```bash
-# View logs
-docker compose logs -f hookr
+# If you ran hookr setup, manage commands work automatically
+hookr manage status
+hookr manage logs
+hookr manage update
+hookr manage backup
 
-# Update to latest version
-git pull && docker compose up -d --build
-
-# Backup the database
-docker compose exec hookr node -e "
-  require('child_process').execSync('cp /data/hookr.db /data/hookr-backup.db')
-"
+# Or specify the host explicitly
+hookr manage status --host 1.2.3.4
 ```
 
 ### Connecting from your local machine

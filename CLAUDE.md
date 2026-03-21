@@ -15,7 +15,7 @@ Webhook relay for AI agents. Receives webhooks from providers (GitHub, Stripe, S
 ```
 src/
   bin/hookr.ts          CLI entrypoint
-  cli/                  Commander-based CLI (setup, listen, poll, channel)
+  cli/                  Commander-based CLI (setup, listen, poll, channel, manage)
   server/               Hono HTTP server + WebSocket
     verify.ts           Signature verification (GitHub, Stripe, Slack)
     delivery.ts         At-least-once delivery workers
@@ -27,7 +27,8 @@ deploy/
   aws.sh                One-command AWS EC2 deploy
   digitalocean.sh       One-command DigitalOcean deploy
   cloud-init.sh         Server provisioning script
-  manage.sh             Remote management (status, logs, backup, update, teardown)
+  manage.sh             Cloud teardown only (AWS/DigitalOcean resource cleanup)
+                        Other management commands are now in `hookr manage`
 ```
 
 ## Skills

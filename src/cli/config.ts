@@ -22,9 +22,27 @@ export interface RemoteConfig {
   remoteDir: string;
 }
 
+/** Extract hostname from a URL, returning undefined for localhost or parse failures. */
+function hostnameFromUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  try {
+    const h = new URL(url).hostname;
+    return h && h !== "localhost" && h !== "127.0.0.1" ? h : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function resolveRemoteConfig(flags: Partial<RemoteConfig>): RemoteConfig | null {
   const config = loadConfig();
-  const host = flags.host || process.env.HOOKR_HOST || config.remoteHost;
+  // Fall back to extracting hostname from serverUrl so users who already
+  // ran `hookr setup` or `hookr login` get `hookr manage` for free.
+  const host =
+    flags.host ||
+    process.env.HOOKR_HOST ||
+    config.remoteHost ||
+    hostnameFromUrl(process.env.HOOKR_SERVER) ||
+    hostnameFromUrl(config.serverUrl);
   if (!host) return null;
   return {
     host,

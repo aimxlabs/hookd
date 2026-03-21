@@ -290,10 +290,10 @@ hookr is deployed and ready.
     hookr listen <CHANNEL_ID> --target http://localhost:8080/webhook
 
   Management:
-    ./deploy/manage.sh status  --host <PUBLIC_IP>
-    ./deploy/manage.sh update  --host <PUBLIC_IP>
-    ./deploy/manage.sh logs    --host <PUBLIC_IP>
-    ./deploy/manage.sh backup  --host <PUBLIC_IP>
+    hookr manage status
+    hookr manage update
+    hookr manage logs
+    hookr manage backup
 ```
 
 ---
@@ -305,7 +305,8 @@ hookr is deployed and ready.
 | `deploy/aws.sh` | One-command AWS EC2 deployment |
 | `deploy/digitalocean.sh` | One-command DigitalOcean deployment |
 | `deploy/cloud-init.sh` | Server provisioning (Docker, hookr, Caddy) |
-| `deploy/manage.sh` | Remote server management (status, logs, backup, update, teardown) |
+| `deploy/manage.sh` | Cloud teardown only (AWS/DigitalOcean resource cleanup) |
+| `src/cli/commands/manage/` | Remote server management via `hookr manage` (status, logs, backup, update, etc.) |
 | `src/server/verify.ts` | Signature verification (GitHub, Stripe, Slack) |
 | `src/cli/commands/setup.ts` | Interactive setup wizard |
 | `src/cli/commands/channel.ts` | Channel CRUD (create, list, inspect, delete) |
@@ -341,6 +342,6 @@ hookr has two levels of authentication:
 
 - **Deploy script fails**: Check AWS/DO credentials, try `aws sts get-caller-identity`
 - **Health check times out**: SSH in, check `tail -f /var/log/cloud-init-output.log`
-- **HTTPS not working**: Verify DNS with `dig <DOMAIN>`, check Caddy logs via `./deploy/manage.sh logs --host <IP> caddy`
+- **HTTPS not working**: Verify DNS with `dig <DOMAIN>`, check Caddy logs via `hookr manage logs --service caddy --no-follow`
 - **Webhook verification fails**: Ensure the signing secret matches exactly what the provider expects
 - **WebSocket disconnects**: The listener auto-reconnects with exponential backoff + jitter
