@@ -9,6 +9,53 @@ const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 export interface HookrConfig {
   serverUrl?: string;
   token?: string;
+  remoteHost?: string;
+  sshKey?: string;
+  sshUser?: string;
+  remoteDir?: string;
+}
+
+export interface RemoteConfig {
+  host: string;
+  sshKey: string;
+  sshUser: string;
+  remoteDir: string;
+}
+
+/** Extract hostname from a URL, returning undefined for localhost or parse failures. */
+function hostnameFromUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  try {
+    const h = new URL(url).hostname;
+    return h && h !== "localhost" && h !== "127.0.0.1" ? h : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function resolveRemoteConfig(flags: Partial<RemoteConfig>): RemoteConfig | null {
+  const config = loadConfig();
+  // Fall back to extracting hostname from serverUrl so users who already
+  // ran `hookr setup` or `hookr login` get `hookr manage` for free.
+  const host =
+    flags.host ||
+    process.env.HOOKR_HOST ||
+    config.remoteHost ||
+    hostnameFromUrl(process.env.HOOKR_SERVER) ||
+    hostnameFromUrl(config.serverUrl);
+  if (!host) return null;
+  return {
+    host,
+    sshKey:
+      flags.sshKey ||
+      process.env.HOOKR_SSH_KEY ||
+      config.sshKey ||
+      join(homedir(), ".ssh", "hookr-deploy-key.pem"),
+    sshUser:
+      flags.sshUser || process.env.HOOKR_SSH_USER || config.sshUser || "ubuntu",
+    remoteDir:
+      flags.remoteDir || process.env.HOOKR_DIR || config.remoteDir || "/opt/hookr",
+  };
 }
 
 export function loadConfig(): HookrConfig {

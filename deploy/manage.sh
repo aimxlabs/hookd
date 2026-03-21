@@ -1,6 +1,10 @@
 #!/bin/bash
 # deploy/manage.sh — Manage a cloud-hosted hookr installation.
 #
+# NOTE: Most commands have moved to the hookr CLI: `hookr manage <command>`
+# This script is kept for `teardown` (AWS/DigitalOcean resource cleanup) only.
+# See: hookr manage --help
+#
 # Run from your LOCAL machine to manage a remote hookr server via SSH,
 # or run directly ON the server for local management.
 #

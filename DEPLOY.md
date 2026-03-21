@@ -291,26 +291,31 @@ hookr listen <channelId> --target http://localhost:8080/webhook
 
 ## Managing your hookr server
 
-After deployment, use `deploy/manage.sh` to manage your server. Every command works **remotely** from your local machine (via SSH) — just add `--host <ip>`.
+After deployment, use `hookr manage` to manage your server. If you already ran `hookr setup`, the host is detected automatically from your saved server URL. Otherwise pass `--host <ip>`.
 
 ### Quick reference
 
 ```bash
-# All commands accept: --host <ip> --key <path> --user <user>
-# Or set env vars: HOOKR_HOST, HOOKR_SSH_KEY, HOOKR_SSH_USER
+# If you ran hookr setup, the host is auto-detected from your server URL
+hookr manage status                          # Container health, disk usage
+hookr manage logs                            # Tail logs (Ctrl+C to stop)
+hookr manage update                          # Pull latest code, rebuild, restart
 
-./deploy/manage.sh status  --host 1.2.3.4    # Container health, disk usage
-./deploy/manage.sh start   --host 1.2.3.4    # Start containers
-./deploy/manage.sh stop    --host 1.2.3.4    # Stop containers
-./deploy/manage.sh restart --host 1.2.3.4    # Restart containers
-./deploy/manage.sh update  --host 1.2.3.4    # Pull latest code, rebuild, restart
-./deploy/manage.sh logs    --host 1.2.3.4    # Tail logs (Ctrl+C to stop)
-./deploy/manage.sh backup  --host 1.2.3.4    # Download database backup
-./deploy/manage.sh restore --host 1.2.3.4 backup.db  # Restore from backup
-./deploy/manage.sh ssh     --host 1.2.3.4    # Open SSH session
-./deploy/manage.sh domain  --host 1.2.3.4 new.example.com  # Change domain
-./deploy/manage.sh env     --host 1.2.3.4    # Show current .env
-./deploy/manage.sh cleanup --host 1.2.3.4    # Free disk space (prune Docker)
+# Or specify the host explicitly
+hookr manage status  --host 1.2.3.4          # Container health, disk usage
+hookr manage start   --host 1.2.3.4          # Start containers
+hookr manage stop    --host 1.2.3.4          # Stop containers
+hookr manage restart --host 1.2.3.4          # Restart containers
+hookr manage update  --host 1.2.3.4          # Pull latest code, rebuild, restart
+hookr manage logs    --host 1.2.3.4          # Tail logs (Ctrl+C to stop)
+hookr manage backup  --host 1.2.3.4          # Download database backup
+hookr manage restore --host 1.2.3.4 backup.db  # Restore from backup
+hookr manage ssh     --host 1.2.3.4          # Open SSH session
+hookr manage domain  --host 1.2.3.4 new.example.com  # Change domain
+hookr manage env     --host 1.2.3.4          # Show current .env
+hookr manage cleanup --host 1.2.3.4          # Free disk space (prune Docker)
+
+# Teardown still uses the deploy script (requires aws/doctl CLI)
 ./deploy/manage.sh teardown aws              # Destroy all AWS resources
 ./deploy/manage.sh teardown digitalocean     # Destroy all DO resources
 ```
@@ -319,62 +324,68 @@ After deployment, use `deploy/manage.sh` to manage your server. Every command wo
 
 **Check if hookr is running:**
 ```bash
-./deploy/manage.sh status --host 1.2.3.4
+hookr manage status --host 1.2.3.4
 ```
 
 **Update to latest version:**
 ```bash
-./deploy/manage.sh update --host 1.2.3.4
+hookr manage update --host 1.2.3.4
 ```
 
 **View logs for debugging:**
 ```bash
 # All logs, follow mode
-./deploy/manage.sh logs --host 1.2.3.4
+hookr manage logs --host 1.2.3.4
 
 # Last 50 lines, no follow
-./deploy/manage.sh logs --host 1.2.3.4 --lines=50 --no-follow
+hookr manage logs --host 1.2.3.4 --lines 50 --no-follow
 
 # Just hookr logs (not Caddy)
-./deploy/manage.sh logs --host 1.2.3.4 hookr
+hookr manage logs --host 1.2.3.4 --service hookr
 ```
 
 **Backup before making changes:**
 ```bash
-./deploy/manage.sh backup --host 1.2.3.4 --output=hookr-2024-01-15.db
+hookr manage backup --host 1.2.3.4 --output hookr-2024-01-15.db
 ```
 
 **Restore from backup:**
 ```bash
-./deploy/manage.sh restore --host 1.2.3.4 hookr-2024-01-15.db
+hookr manage restore --host 1.2.3.4 hookr-2024-01-15.db
 ```
 
 **Change domain:**
 ```bash
-./deploy/manage.sh domain --host 1.2.3.4 new-hookr.example.com
+hookr manage domain --host 1.2.3.4 new-hookr.example.com
 ```
 
 **Tear everything down:**
 ```bash
-# Destroys server, releases IP, cleans up security groups/keys
+# Teardown uses the deploy script (requires aws/doctl CLI)
 ./deploy/manage.sh teardown aws
 ./deploy/manage.sh teardown digitalocean
 ```
 
-### Using environment variables
+### Saving connection details
 
-If you manage hookr regularly, set these in your shell profile to avoid typing flags every time:
+Save your SSH connection info so you don't need `--host` every time:
 
 ```bash
+# Interactive — prompts for host, SSH key, user, remote directory
+hookr manage init
+
+# Or use environment variables
 export HOOKR_HOST="1.2.3.4"
 export HOOKR_SSH_KEY="$HOME/.ssh/hookr-deploy-key.pem"
 export HOOKR_SSH_USER="ubuntu"
 
 # Now just:
-./deploy/manage.sh status
-./deploy/manage.sh update
-./deploy/manage.sh logs
+hookr manage status
+hookr manage update
+hookr manage logs
 ```
+
+> **Tip:** If you already ran `hookr setup` or `hookr login` with a remote server URL, `hookr manage` auto-detects the host from your saved config — no extra setup needed.
 
 ---
 
@@ -385,14 +396,14 @@ export HOOKR_SSH_USER="ubuntu"
 The server might still be starting up. Docker image build takes 2-3 minutes on first deploy:
 
 ```bash
-./deploy/manage.sh status --host <PUBLIC_IP>
-./deploy/manage.sh logs --host <PUBLIC_IP> --no-follow
+hookr manage status --host <PUBLIC_IP>
+hookr manage logs --host <PUBLIC_IP> --no-follow
 ```
 
 Or SSH in and check cloud-init progress:
 
 ```bash
-./deploy/manage.sh ssh --host <PUBLIC_IP>
+hookr manage ssh --host <PUBLIC_IP>
 tail -f /var/log/cloud-init-output.log
 ```
 
@@ -406,7 +417,7 @@ dig hookr.example.com +short
 # Should show your server's IP
 
 # Check Caddy logs for certificate errors
-./deploy/manage.sh logs --host <PUBLIC_IP> caddy --no-follow
+hookr manage logs --host <PUBLIC_IP> --service caddy --no-follow
 ```
 
 ### "Permission denied" on SSH
@@ -420,5 +431,5 @@ chmod 600 ~/.ssh/hookr-deploy-key.pem
 ### Server running out of disk space
 
 ```bash
-./deploy/manage.sh cleanup --host <PUBLIC_IP>
+hookr manage cleanup --host <PUBLIC_IP>
 ```
