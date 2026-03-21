@@ -19,6 +19,10 @@
 # Estimated time: ~3 minutes
 # Estimated cost: $6/month (s-1vcpu-1gb)
 
+echo "NOTE: This script is superseded by: hookr deploy digitalocean <domain> [region]"
+echo "      The CLI version is the recommended way to deploy."
+echo ""
+
 set -euo pipefail
 
 DOMAIN="${1:?Usage: ./deploy/digitalocean.sh <domain> [region]}"

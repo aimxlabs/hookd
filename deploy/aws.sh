@@ -20,6 +20,10 @@
 # Estimated time: ~5 minutes
 # Estimated cost: ~$4-9/month (t3.micro or t3.small)
 
+echo "NOTE: This script is superseded by: hookr deploy aws <domain> [region]"
+echo "      The CLI version is the recommended way to deploy."
+echo ""
+
 set -euo pipefail
 
 DOMAIN="${1:?Usage: ./deploy/aws.sh <domain> [region]}"
