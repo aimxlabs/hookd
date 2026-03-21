@@ -1,0 +1,55 @@
+{
+  "name": "hookr",
+  "version": "0.1.0",
+  "description": "Webhook relay for AI agents — receive, verify, and forward webhooks in real-time",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "hookr": "./dist/bin/hookr.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "prettier --check src/ test/",
+    "format": "prettier --write src/ test/",
+    "start": "node dist/bin/hookr.js"
+  },
+  "keywords": [
+    "webhook",
+    "relay",
+    "agent",
+    "websocket",
+    "github",
+    "stripe",
+    "ngrok-alternative"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.8",
+    "@hono/node-ws": "^1.1.1",
+    "better-sqlite3": "^11.8.1",
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "drizzle-orm": "^0.38.4",
+    "hono": "^4.7.5",
+    "nanoid": "^5.1.2",
+    "ora": "^8.2.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.13.10",
+    "@types/ws": "^8.5.14",
+    "drizzle-kit": "^0.30.5",
+    "prettier": "^3.5.3",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.8"
+  }
+}
