@@ -71,6 +71,23 @@ export function parseClientMessage(raw: string): ClientMessage | null {
   try {
     const msg = JSON.parse(raw);
     if (!msg || typeof msg.type !== "string") return null;
+
+    switch (msg.type) {
+      case "auth":
+        if (typeof msg.token !== "string") return null;
+        break;
+      case "subscribe":
+        if (typeof msg.channelId !== "string") return null;
+        break;
+      case "ack":
+        if (typeof msg.eventId !== "string") return null;
+        break;
+      case "ping":
+        break;
+      default:
+        return null;
+    }
+
     return msg as ClientMessage;
   } catch {
     return null;

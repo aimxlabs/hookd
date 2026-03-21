@@ -87,8 +87,8 @@ describe("verifyWebhookSignature", () => {
     expect(verifyWebhookSignature("generic", "body", "secret", {})).toBe(true);
   });
 
-  it("returns true for unknown provider", () => {
-    expect(verifyWebhookSignature("unknown", "body", "secret", {})).toBe(true);
+  it("rejects unknown provider to prevent verification bypass", () => {
+    expect(verifyWebhookSignature("unknown", "body", "secret", {})).toBe(false);
   });
 
   it("delegates to github verifier", () => {

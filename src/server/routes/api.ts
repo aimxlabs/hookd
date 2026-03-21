@@ -10,6 +10,8 @@ import {
 } from "../../shared/constants.js";
 import type { Provider } from "../../shared/types.js";
 
+const VALID_PROVIDERS = new Set(["github", "stripe", "slack", "generic"]);
+
 const api = new Hono();
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -53,9 +55,12 @@ function isValidCallbackUrl(raw: string): boolean {
   const hostname = url.hostname.toLowerCase();
 
   // Block cloud metadata endpoints
-  if (hostname === "169.254.169.254" || hostname === "metadata.google.internal") {
-    return false;
-  }
+  const blockedHostnames = new Set([
+    "169.254.169.254",           // AWS/Azure/GCP instance metadata
+    "metadata.google.internal",  // GCP metadata
+    "metadata.azure.com",        // Azure metadata
+  ]);
+  if (blockedHostnames.has(hostname)) return false;
 
   // Block localhost / loopback
   if (
@@ -63,19 +68,33 @@ function isValidCallbackUrl(raw: string): boolean {
     hostname === "127.0.0.1" ||
     hostname === "::1" ||
     hostname === "[::1]" ||
-    hostname === "0.0.0.0"
+    hostname === "0.0.0.0" ||
+    hostname.endsWith(".localhost")
   ) {
     return false;
   }
 
-  // Block private IPv4 ranges
+  // Block private/reserved IPv4 ranges
   const ipv4Match = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
   if (ipv4Match) {
     const [, a, b] = ipv4Match.map(Number);
-    if (a === 10) return false;                          // 10.0.0.0/8
-    if (a === 172 && b >= 16 && b <= 31) return false;   // 172.16.0.0/12
-    if (a === 192 && b === 168) return false;             // 192.168.0.0/16
-    if (a === 169 && b === 254) return false;             // 169.254.0.0/16 link-local
+    if (a === 0) return false;                            // 0.0.0.0/8 "this" network
+    if (a === 10) return false;                           // 10.0.0.0/8
+    if (a === 100 && b >= 64 && b <= 127) return false;   // 100.64.0.0/10 CGN
+    if (a === 127) return false;                          // 127.0.0.0/8 loopback
+    if (a === 169 && b === 254) return false;              // 169.254.0.0/16 link-local
+    if (a === 172 && b >= 16 && b <= 31) return false;    // 172.16.0.0/12
+    if (a === 192 && b === 168) return false;              // 192.168.0.0/16
+  }
+
+  // Block IPv6 private ranges (bracket-wrapped in URLs)
+  const bare = hostname.replace(/^\[|\]$/g, "");
+  if (
+    bare.startsWith("fc") || bare.startsWith("fd") ||  // ULA
+    bare.startsWith("fe80") ||                          // link-local
+    bare === "::1"                                      // loopback
+  ) {
+    return false;
   }
 
   return true;
@@ -120,6 +139,13 @@ api.post("/api/channels", async (c) => {
     return c.json({ error: "name must be 256 characters or fewer" }, 400);
   }
 
+  if (body.provider && !VALID_PROVIDERS.has(body.provider)) {
+    return c.json(
+      { error: `Invalid provider — must be one of: ${[...VALID_PROVIDERS].join(", ")}` },
+      400,
+    );
+  }
+
   if (body.callbackUrl && !isValidCallbackUrl(body.callbackUrl)) {
     return c.json(
       { error: "Invalid callbackUrl — must be a public HTTP(S) URL" },
@@ -145,13 +171,19 @@ api.post("/api/channels", async (c) => {
     })
     .run();
 
-  const [channel] = db
-    .select()
-    .from(schema.channels)
-    .where(eq(schema.channels.id, id))
-    .all();
-
-  return c.json(channel, 201);
+  return c.json(
+    {
+      id,
+      name: body.name,
+      provider: body.provider ?? null,
+      callbackUrl: body.callbackUrl ?? null,
+      authToken, // intentionally returned once on creation for the admin to save
+      createdAt: now,
+      updatedAt: now,
+      // Note: 'secret' is intentionally omitted from the response
+    },
+    201,
+  );
 });
 
 // List channels (public — no secrets returned)

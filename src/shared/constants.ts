@@ -16,3 +16,4 @@ export const PRUNE_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 export const MAX_BODY_BYTES = 1_048_576; // 1 MB
 export const MAX_QUERY_LIMIT = 1000;
+export const MAX_WS_MESSAGE_BYTES = 4096; // 4 KB — client messages are small JSON
