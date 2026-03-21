@@ -1,8 +1,9 @@
 import { Command } from "commander";
 import WebSocket from "ws";
 import chalk from "chalk";
-import { DEFAULT_PORT, WS_RECONNECT_BASE_MS, WS_RECONNECT_MAX_MS } from "../../shared/constants.js";
+import { WS_RECONNECT_BASE_MS, WS_RECONNECT_MAX_MS } from "../../shared/constants.js";
 import type { ServerMessage } from "../../shared/protocol.js";
+import { resolveServerUrl, resolveToken } from "../config.js";
 
 export const listenCommand = new Command("listen")
   .description("Connect to a channel and forward webhook events to a local URL")
@@ -12,7 +13,8 @@ export const listenCommand = new Command("listen")
   .option("--token <token>", "Auth token for the channel")
   .option("-s, --server <url>", "Server URL")
   .action((channelId, opts) => {
-    const serverUrl = opts.server || `http://localhost:${DEFAULT_PORT}`;
+    const serverUrl = resolveServerUrl(opts.server);
+    const token = resolveToken(opts.token);
     const wsUrl = serverUrl.replace(/^http/, "ws") + "/ws";
 
     let reconnectDelay = WS_RECONNECT_BASE_MS;
@@ -26,8 +28,8 @@ export const listenCommand = new Command("listen")
         console.log(chalk.green("Connected to hookr server."));
 
         // Authenticate
-        if (opts.token) {
-          ws.send(JSON.stringify({ type: "auth", token: opts.token }));
+        if (token) {
+          ws.send(JSON.stringify({ type: "auth", token }));
         }
 
         // Subscribe to channel

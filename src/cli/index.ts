@@ -5,6 +5,7 @@ import { channelCommand } from "./commands/channel.js";
 import { listenCommand } from "./commands/listen.js";
 import { loginCommand } from "./commands/login.js";
 import { pollCommand } from "./commands/poll.js";
+import { setupCommand } from "./commands/setup.js";
 
 const program = new Command();
 
@@ -17,16 +18,17 @@ program
     console.log();
     console.log(chalk.bold("  hookr") + chalk.dim(" — webhook relay for AI agents"));
     console.log();
-    console.log("  Quick start:");
+    console.log("  Get started:");
     console.log();
-    console.log(chalk.dim("  # 1. Start the server"));
+    console.log(chalk.dim("  # On your server (AWS, VPS, etc.)"));
     console.log(`  $ ${chalk.cyan("hookr serve")}`);
     console.log();
-    console.log(chalk.dim("  # 2. Create a channel"));
-    console.log(`  $ ${chalk.cyan('hookr channel create --name my-webhook')}`);
+    console.log(chalk.dim("  # On your local machine — guided setup"));
+    console.log(`  $ ${chalk.cyan("hookr setup")}`);
     console.log();
-    console.log(chalk.dim("  # 3. Listen for events"));
-    console.log(`  $ ${chalk.cyan("hookr listen <channelId> --target http://localhost:3000")}`);
+    console.log(chalk.dim("  # Or do it manually"));
+    console.log(`  $ ${chalk.cyan("hookr login <token> -s https://your-server.com")}`);
+    console.log(`  $ ${chalk.cyan("hookr listen <channelId>")}`);
     console.log();
     console.log(chalk.dim("  Run hookr --help for all commands."));
     console.log();
@@ -37,5 +39,6 @@ program.addCommand(channelCommand);
 program.addCommand(listenCommand);
 program.addCommand(loginCommand);
 program.addCommand(pollCommand);
+program.addCommand(setupCommand);
 
 export { program };

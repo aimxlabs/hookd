@@ -6,18 +6,34 @@ AI agents can't easily receive webhooks — they don't run stable HTTP servers. 
 
 ## Quick Start
 
+The hookr server typically runs on a cloud server (AWS, DigitalOcean, etc.) so it can receive webhooks from the internet. You connect to it from your local machine.
+
+**On your server:**
+
 ```bash
-# Terminal 1: Start the server
-npx hookr serve
+npm install -g hookr
+hookr serve --public-url https://hookr.example.com
+```
 
-# Terminal 2: Create a channel and listen
-npx hookr channel create --name my-github
-# => Channel created: http://localhost:4801/h/ch_a1b2c3d4
-# => Copy this URL to your GitHub webhook settings
+**On your local machine:**
 
-npx hookr listen ch_a1b2c3d4 --target http://localhost:8080/webhook
+```bash
+npm install -g hookr
+
+# Guided setup — creates a channel, saves your server URL and token
+hookr setup -s https://hookr.example.com
+
+# Start receiving events
+hookr listen ch_a1b2c3d4 --target http://localhost:8080/webhook
 # => Connected! Forwarding events to http://localhost:8080/webhook...
-# => [12:34:56] POST from 140.82.115.x — push event — 204 (2ms)
+```
+
+**Or for local development (everything on one machine):**
+
+```bash
+hookr serve &
+hookr channel create --name my-github
+hookr listen ch_a1b2c3d4 --target http://localhost:8080/webhook
 ```
 
 ## How It Works
@@ -42,10 +58,12 @@ GitHub/Stripe/etc.  →  hookr server  →  WebSocket     →  hookr listen  →
 ## Commands
 
 ```
+hookr setup                    Guided setup — connect to server and create a channel
 hookr serve                    Start the hookr server
   -p, --port <port>            Port (default: 4801)
   --host <host>                Host (default: 0.0.0.0)
   --db <path>                  SQLite database path (default: hookr.db)
+  --public-url <url>           Public URL (for correct URLs in logs)
 
 hookr channel create           Create a new webhook channel
   -n, --name <name>            Channel name (required)
@@ -67,10 +85,22 @@ hookr poll <channelId>         Poll for pending events (cron-friendly)
   --limit <n>                  Max events per poll (default: 100)
   --after <eventId>            Cursor: only events after this ID
   --no-ack                     Don't auto-acknowledge fetched events
-  --token <token>              Auth token (required)
+  --token <token>              Auth token
 
-hookr login <token>            Save auth token
+hookr login <token>            Save server URL and auth token
+  -s, --server <url>           Server URL to save
 ```
+
+### Configuration
+
+All commands resolve the server URL and auth token in this order:
+
+1. **CLI flags** (`--server`, `--token`) — highest priority
+2. **Environment variables** (`HOOKR_SERVER`, `HOOKR_TOKEN`)
+3. **Config file** (`~/.hookr/config.json`) — saved by `hookr login` or `hookr setup`
+4. **Default** — `http://localhost:4801`
+
+Once you run `hookr login <token> -s https://your-server.com`, you won't need to pass `--server` or `--token` again.
 
 ## Features
 
@@ -122,6 +152,53 @@ Agents connect via WebSocket and subscribe to channels:
 { "type": "event", "eventId": "evt_...", "channelId": "ch_...", "headers": {...}, "body": "...", "method": "POST", "ip": "..." }
 ```
 
+## Deploying to the Cloud
+
+hookr is designed for a split setup: the **server** runs on a cloud machine with a public IP, and you **connect from your local machine** (or agent) to receive events.
+
+### Basic deployment (any VPS)
+
+```bash
+# On your server (AWS EC2, DigitalOcean droplet, etc.)
+npm install -g hookr
+hookr serve --public-url https://hookr.example.com
+```
+
+You'll need to put hookr behind a reverse proxy (Nginx, Caddy) for HTTPS. Example with Caddy:
+
+```
+# /etc/caddy/Caddyfile
+hookr.example.com {
+    reverse_proxy localhost:4801
+}
+```
+
+Caddy automatically provisions TLS certificates. Nginx works too — just proxy to `localhost:4801`.
+
+### Connecting from your local machine
+
+```bash
+# Save your server URL and token once
+hookr login tok_xyz789 -s https://hookr.example.com
+
+# All future commands use the saved config automatically
+hookr channel list
+hookr listen ch_a1b2c3d4 --target http://localhost:3000
+hookr poll ch_a1b2c3d4
+```
+
+### Environment variables
+
+For CI/CD, Docker, or cron, use environment variables instead of the config file:
+
+```bash
+export HOOKR_SERVER=https://hookr.example.com
+export HOOKR_TOKEN=tok_xyz789
+export HOOKR_PUBLIC_URL=https://hookr.example.com  # server-side only
+
+hookr poll ch_a1b2c3d4 --target http://localhost:3000
+```
+
 ## Integration Guides
 
 hookr is designed as the webhook ingress layer for self-hosted AI agents. Below are step-by-step guides for the most popular agent frameworks.
@@ -130,25 +207,19 @@ hookr is designed as the webhook ingress layer for self-hosted AI agents. Below 
 
 OpenClaw's Gateway has a built-in hooks endpoint, but it only supports bearer-token auth — it can't verify GitHub/Stripe HMAC signatures natively. hookr handles signature verification and forwards verified payloads to the Gateway.
 
-**Flow:** `GitHub → hookr (public) → hookr listen → OpenClaw Gateway (local)`
+**Flow:** `GitHub → hookr (cloud) → hookr listen (local) → OpenClaw Gateway (local)`
 
 ```bash
-# 1. Start hookr (on a machine with a public IP, or use a tunnel)
-hookr serve --port 4801
+# 1. On your server — start hookr
+hookr serve --public-url https://hookr.example.com
 
-# 2. Create a channel with signature verification
-hookr channel create \
-  --name github-deploys \
-  --provider github \
-  --secret "$GITHUB_WEBHOOK_SECRET"
-# => Channel: ch_a1b2c3d4
-# => Webhook URL: http://your-server:4801/h/ch_a1b2c3d4
-# => Token: tok_xyz789
+# 2. On your local machine — run guided setup
+hookr setup -s https://hookr.example.com
+# => walks you through creating a channel with GitHub provider + signing secret
+# => saves server URL and token automatically
 
 # 3. Forward events to OpenClaw's Gateway hooks endpoint
-hookr listen ch_a1b2c3d4 \
-  --target http://127.0.0.1:18789/hooks/wake \
-  --token tok_xyz789
+hookr listen ch_a1b2c3d4 --target http://127.0.0.1:18789/hooks/wake
 ```
 
 Then configure OpenClaw to accept the forwarded events in `~/.openclaw/openclaw.json`:
@@ -169,7 +240,7 @@ Finally, point GitHub's webhook settings at your hookr URL (`http://your-server:
 
 ```bash
 # Run every minute via cron — fetches pending events, forwards to OpenClaw, auto-acks
-*/1 * * * * hookr poll ch_a1b2c3d4 --target http://127.0.0.1:18789/hooks/wake --token tok_xyz789
+*/1 * * * * hookr poll ch_a1b2c3d4 --target http://127.0.0.1:18789/hooks/wake
 ```
 
 > **Tip:** For Stripe or Slack, just change `--provider stripe` or `--provider slack` and set the matching signing secret. hookr handles each provider's signature format.
@@ -181,12 +252,8 @@ nanobot doesn't have an HTTP webhook receiver yet (it's [on the roadmap](https:/
 **Option A: JSON stdout** — pipe events into a handler script
 
 ```bash
-# 1. Start hookr + create a channel (same as above)
-hookr serve --port 4801
-hookr channel create --name github-issues --provider github --secret "$SECRET"
-
-# 2. Listen in JSON mode and pipe to a script
-hookr listen ch_a1b2c3d4 --json --token tok_xyz789 \
+# After running hookr setup (saves server URL + token)
+hookr listen ch_a1b2c3d4 --json \
   | while IFS= read -r event; do
       # Extract the event body and pass it to nanobot
       echo "$event" | jq -r '.body' | nanobot run --stdin
@@ -213,8 +280,8 @@ When no WebSocket client is connected, hookr POSTs verified events directly to t
 **Option C: Cron polling** — no persistent process needed at all
 
 ```bash
-# Poll every 5 minutes, pipe events to nanobot
-*/5 * * * * hookr poll ch_a1b2c3d4 --token tok_xyz789 \
+# Poll every 5 minutes, pipe events to nanobot (uses saved config)
+*/5 * * * * hookr poll ch_a1b2c3d4 \
   | while IFS= read -r event; do echo "$event" | jq -r '.body' | nanobot run --stdin; done
 ```
 

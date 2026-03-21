@@ -1,10 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { DEFAULT_PORT } from "../../shared/constants.js";
-
-function getBaseUrl(opts: { server?: string }): string {
-  return opts.server || `http://localhost:${DEFAULT_PORT}`;
-}
+import { resolveServerUrl } from "../config.js";
 
 export const channelCommand = new Command("channel")
   .description("Manage webhook channels");
@@ -18,7 +14,7 @@ channelCommand
   .option("--callback-url <url>", "HTTP fallback URL for delivery")
   .option("-s, --server <url>", "Server URL")
   .action(async (opts) => {
-    const baseUrl = getBaseUrl(opts);
+    const baseUrl = resolveServerUrl(opts.server);
     try {
       const res = await fetch(`${baseUrl}/api/channels`, {
         method: "POST",
@@ -62,7 +58,7 @@ channelCommand
   .description("List all channels")
   .option("-s, --server <url>", "Server URL")
   .action(async (opts) => {
-    const baseUrl = getBaseUrl(opts);
+    const baseUrl = resolveServerUrl(opts.server);
     try {
       const res = await fetch(`${baseUrl}/api/channels`);
       const channels = await res.json() as any[];
@@ -90,7 +86,7 @@ channelCommand
   .description("Delete a channel")
   .option("-s, --server <url>", "Server URL")
   .action(async (id, opts) => {
-    const baseUrl = getBaseUrl(opts);
+    const baseUrl = resolveServerUrl(opts.server);
     try {
       const res = await fetch(`${baseUrl}/api/channels/${id}`, {
         method: "DELETE",
@@ -115,7 +111,7 @@ channelCommand
   .option("-l, --limit <n>", "Number of events to show", "10")
   .option("-s, --server <url>", "Server URL")
   .action(async (id, opts) => {
-    const baseUrl = getBaseUrl(opts);
+    const baseUrl = resolveServerUrl(opts.server);
     try {
       const res = await fetch(
         `${baseUrl}/api/channels/${id}/events?limit=${opts.limit}`,

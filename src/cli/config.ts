@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { DEFAULT_PORT } from "../shared/constants.js";
 
 const CONFIG_DIR = join(homedir(), ".hookr");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
@@ -22,4 +23,30 @@ export function loadConfig(): HookrConfig {
 export function saveConfig(config: HookrConfig): void {
   mkdirSync(CONFIG_DIR, { recursive: true });
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
+/**
+ * Resolve the effective server URL from (in priority order):
+ *   1. --server flag (explicit CLI option)
+ *   2. HOOKR_SERVER environment variable
+ *   3. Saved config file (~/.hookr/config.json)
+ *   4. Default: http://localhost:4801
+ */
+export function resolveServerUrl(flagValue?: string): string {
+  return (
+    flagValue ||
+    process.env.HOOKR_SERVER ||
+    loadConfig().serverUrl ||
+    `http://localhost:${DEFAULT_PORT}`
+  );
+}
+
+/**
+ * Resolve the effective auth token from (in priority order):
+ *   1. --token flag (explicit CLI option)
+ *   2. HOOKR_TOKEN environment variable
+ *   3. Saved config file (~/.hookr/config.json)
+ */
+export function resolveToken(flagValue?: string): string | undefined {
+  return flagValue || process.env.HOOKR_TOKEN || loadConfig().token;
 }

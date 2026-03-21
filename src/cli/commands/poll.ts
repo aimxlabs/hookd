@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { DEFAULT_PORT } from "../../shared/constants.js";
+import { resolveServerUrl, resolveToken } from "../config.js";
 
 export const pollCommand = new Command("poll")
   .description("Poll for pending events and output them (cron-friendly)")
@@ -12,11 +12,12 @@ export const pollCommand = new Command("poll")
   .option("--no-ack", "Don't acknowledge events after fetching")
   .option("-s, --server <url>", "Server URL")
   .action(async (channelId, opts) => {
-    const serverUrl = opts.server || `http://localhost:${DEFAULT_PORT}`;
-    const token = opts.token;
+    const serverUrl = resolveServerUrl(opts.server);
+    const token = resolveToken(opts.token);
 
     if (!token) {
-      console.error(chalk.red("Error: --token is required for polling"));
+      console.error(chalk.red("Error: auth token is required for polling."));
+      console.error(chalk.dim("Set it with: hookr login <token>, or pass --token, or set HOOKR_TOKEN"));
       process.exit(1);
     }
 
