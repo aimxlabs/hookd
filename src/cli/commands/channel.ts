@@ -76,10 +76,24 @@ channelCommand
   .command("list")
   .description("List all channels")
   .option("-s, --server <url>", "Server URL")
+  .option("--admin-token <token>", "Admin token (or set HOOKR_ADMIN_TOKEN)")
   .action(async (opts) => {
     const baseUrl = resolveServerUrl(opts.server);
+    const adminToken = resolveAdminToken(opts.adminToken);
     try {
-      const res = await fetch(`${baseUrl}/api/channels`);
+      const res = await fetch(`${baseUrl}/api/channels`, {
+        headers: adminHeaders(adminToken),
+      });
+
+      if (!res.ok) {
+        const err = await res.json() as any;
+        console.error(chalk.red(`Error: ${err.error || res.statusText}`));
+        if (res.status === 401) {
+          console.error(chalk.dim("Hint: set HOOKR_ADMIN_TOKEN or pass --admin-token"));
+        }
+        process.exit(1);
+      }
+
       const channels = await res.json() as any[];
 
       if (channels.length === 0) {

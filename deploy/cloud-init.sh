@@ -75,20 +75,25 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
+# Save admin token to a file readable only by root, rather than echoing to logs
+TOKEN_FILE="/opt/hookr/.admin-token"
+echo "${HOOKR_ADMIN_TOKEN}" > "${TOKEN_FILE}"
+chmod 600 "${TOKEN_FILE}"
+
 echo ""
 echo "========================================"
 echo "  hookr is deployed!"
 echo ""
 echo "  Health check:  https://${HOOKR_DOMAIN}/health"
 echo "  Webhook URL:   https://${HOOKR_DOMAIN}/h/<channelId>"
-echo "  Admin token:   ${HOOKR_ADMIN_TOKEN}"
 echo ""
 echo "  Note: HTTPS will work once DNS is pointing"
 echo "  to this server's IP address."
 echo ""
-echo "  The admin token is required to create/delete channels."
+echo "  The admin token is saved to: ${TOKEN_FILE}"
+echo "  Retrieve it with: sudo cat ${TOKEN_FILE}"
+echo ""
 echo "  Use it with: hookr channel create -n <name> --admin-token <token>"
-echo "  Or set:      export HOOKR_ADMIN_TOKEN=${HOOKR_ADMIN_TOKEN}"
 echo ""
 echo "  Logs:   cd /opt/hookr && docker compose logs -f"
 echo "  Update: cd /opt/hookr && git pull && docker compose up -d --build"

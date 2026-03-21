@@ -1,8 +1,10 @@
 import type { ServerWebSocket } from "@hono/node-ws";
 import type { WSContext } from "hono/ws";
 import { eq } from "drizzle-orm";
+import { timingSafeEqual } from "node:crypto";
 import { getDb, schema } from "../db/index.js";
 import { parseClientMessage, type EventMessage } from "../shared/protocol.js";
+import { MAX_WS_MESSAGE_BYTES } from "../shared/constants.js";
 
 interface AgentConnection {
   ws: WSContext;
@@ -27,6 +29,11 @@ export function handleWsOpen(ws: WSContext): void {
 export function handleWsMessage(ws: WSContext, data: string): void {
   const conn = connections.get(ws);
   if (!conn) return;
+
+  if (data.length > MAX_WS_MESSAGE_BYTES) {
+    ws.send(JSON.stringify({ type: "error", message: "Message too large" }));
+    return;
+  }
 
   const msg = parseClientMessage(data);
   if (!msg) {
@@ -87,9 +94,13 @@ function handleSubscribe(conn: AgentConnection, channelId: string): void {
     return;
   }
 
-  // Verify auth token
-  const token = (conn as any).token;
-  if (channel.authToken && channel.authToken !== token) {
+  // Verify auth token (timing-safe comparison to prevent timing attacks)
+  const token = (conn as any).token as string | undefined;
+  if (
+    !token ||
+    token.length !== channel.authToken.length ||
+    !timingSafeEqual(Buffer.from(token), Buffer.from(channel.authToken))
+  ) {
     conn.ws.send(
       JSON.stringify({ type: "auth_error", message: "Invalid token for channel" }),
     );

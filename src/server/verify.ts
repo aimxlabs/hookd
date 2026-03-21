@@ -91,7 +91,9 @@ export function verifyWebhookSignature(
         headers["x-slack-signature"],
         headers["x-slack-request-timestamp"],
       );
-    default:
+    case "generic":
       return true; // generic provider — no verification
+    default:
+      return false; // unknown provider — reject to prevent bypass
   }
 }
