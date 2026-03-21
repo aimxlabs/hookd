@@ -157,6 +157,8 @@ Agents connect via WebSocket and subscribe to channels:
 
 hookr is designed for a split setup: the **server** runs on a cloud machine with a public IP, and you **connect from your local machine** (or agent) to receive events.
 
+**One-command deploy scripts** are available for AWS and DigitalOcean — see **[DEPLOY.md](./DEPLOY.md)** for full step-by-step instructions (designed to be followed by an AI agent with cloud API credentials).
+
 ### Docker deployment (recommended)
 
 **Prerequisites:**
