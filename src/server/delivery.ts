@@ -54,9 +54,7 @@ const FORWARDED_HEADER_ALLOWLIST = new Set([
 ]);
 
 /** Pick only safe headers from the original webhook to forward. */
-function safeHeaders(
-  raw: Record<string, string>,
-): Record<string, string> {
+function safeHeaders(raw: Record<string, string>): Record<string, string> {
   const safe: Record<string, string> = {};
   for (const [key, value] of Object.entries(raw)) {
     if (FORWARDED_HEADER_ALLOWLIST.has(key.toLowerCase())) {
@@ -75,8 +73,8 @@ async function deliverViaHttp(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Hookr-Event-Id": event.id,
-        "X-Hookr-Channel-Id": event.channelId,
+        "X-Hookd-Event-Id": event.id,
+        "X-Hookd-Channel-Id": event.channelId,
         ...safeHeaders(
           typeof event.headers === "string"
             ? JSON.parse(event.headers)
@@ -132,7 +130,9 @@ export function retryUndeliveredEvents(): void {
   }
 }
 
-export function pruneOldEvents(retentionDays: number = DEFAULT_RETENTION_DAYS): number {
+export function pruneOldEvents(
+  retentionDays: number = DEFAULT_RETENTION_DAYS,
+): number {
   const db = getDb();
   const cutoff = Math.floor(Date.now() / 1000) - retentionDays * 24 * 60 * 60;
 

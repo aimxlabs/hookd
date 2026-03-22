@@ -1,14 +1,21 @@
 import { Command } from "commander";
 import WebSocket from "ws";
 import chalk from "chalk";
-import { WS_RECONNECT_BASE_MS, WS_RECONNECT_MAX_MS } from "../../shared/constants.js";
+import {
+  WS_RECONNECT_BASE_MS,
+  WS_RECONNECT_MAX_MS,
+} from "../../shared/constants.js";
 import type { ServerMessage } from "../../shared/protocol.js";
 import { resolveServerUrl, resolveToken } from "../config.js";
 
 export const listenCommand = new Command("listen")
   .description("Connect to a channel and forward webhook events to a local URL")
   .argument("<channelId>", "Channel ID to listen on")
-  .option("-t, --target <url>", "Local URL to forward events to", "http://localhost:3000")
+  .option(
+    "-t, --target <url>",
+    "Local URL to forward events to",
+    "http://localhost:3000",
+  )
   .option("--json", "Output raw JSON to stdout instead of forwarding")
   .option("--token <token>", "Auth token for the channel")
   .option("-s, --server <url>", "Server URL")
@@ -25,7 +32,7 @@ export const listenCommand = new Command("listen")
 
       ws.on("open", () => {
         reconnectDelay = WS_RECONNECT_BASE_MS;
-        console.log(chalk.green("Connected to hookr server."));
+        console.log(chalk.green("Connected to hookd server."));
 
         // Authenticate
         if (token) {
@@ -52,7 +59,9 @@ export const listenCommand = new Command("listen")
 
           case "subscribed":
             if (opts.json) {
-              console.log(chalk.green(`Listening on ${msg.channelId} (JSON mode)`));
+              console.log(
+                chalk.green(`Listening on ${msg.channelId} (JSON mode)`),
+              );
             } else {
               console.log(
                 chalk.green(`Listening on ${msg.channelId}`),
@@ -76,8 +85,8 @@ export const listenCommand = new Command("listen")
                   headers: {
                     "Content-Type":
                       msg.headers["content-type"] || "application/json",
-                    "X-Hookr-Event-Id": msg.eventId,
-                    "X-Hookr-Channel-Id": msg.channelId,
+                    "X-Hookd-Event-Id": msg.eventId,
+                    "X-Hookd-Channel-Id": msg.channelId,
                   },
                   body: msg.body,
                   signal: AbortSignal.timeout(30_000),

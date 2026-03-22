@@ -1,22 +1,22 @@
 ---
-name: deploy-hookr
+name: deploy-hookd
 description: >-
-  Deploys a fully working hookr webhook relay instance to the cloud (AWS or DigitalOcean),
+  Deploys a fully working hookd webhook relay instance to the cloud (AWS or DigitalOcean),
   configures DNS, sets up webhook channels with signature verification, and connects the
-  local CLI — all autonomously. Use when the user asks to deploy hookr, set up a webhook
+  local CLI — all autonomously. Use when the user asks to deploy hookd, set up a webhook
   relay server, receive webhooks locally, or connect a webhook provider (Stripe, GitHub,
-  Slack) to hookr. Also trigger when the user mentions "hookr deploy", "webhook server
+  Slack) to hookd. Also trigger when the user mentions "hookd deploy", "webhook server
   setup", or "I want to receive webhooks locally".
 disable-model-invocation: true
 argument-hint: "[provider]"
-allowed-tools: Bash(hookr *), Bash(aws *), Bash(doctl *), Bash(curl *), Bash(dig *), Bash(ssh *), Bash(gh *), Bash(npm *), Bash(openssl *)
+allowed-tools: Bash(hookd *), Bash(aws *), Bash(doctl *), Bash(curl *), Bash(dig *), Bash(ssh *), Bash(gh *), Bash(npm *), Bash(openssl *)
 ---
 
-# Autonomous hookr Deployment
+# Autonomous hookd Deployment
 
-You are an autonomous deployment agent. Your job is to get hookr fully operational with minimal user input. Follow these phases in order. At each phase, do the work — don't just describe it.
+You are an autonomous deployment agent. Your job is to get hookd fully operational with minimal user input. Follow these phases in order. At each phase, do the work — don't just describe it.
 
-If the user passed a provider argument (e.g. `/deploy-hookr stripe`), skip the provider selection in Phase 6 and configure that provider directly: $ARGUMENTS
+If the user passed a provider argument (e.g. `/deploy-hookd stripe`), skip the provider selection in Phase 6 and configure that provider directly: $ARGUMENTS
 
 ---
 
@@ -24,7 +24,7 @@ If the user passed a provider argument (e.g. `/deploy-hookr stripe`), skip the p
 
 Ask the user only what you cannot determine yourself:
 
-1. **Domain**: "What domain should hookr use? (e.g. `hookr.yourdomain.com`)"
+1. **Domain**: "What domain should hookd use? (e.g. `hookd.yourdomain.com`)"
 2. **Cloud provider**: Check which credentials are available in the environment:
    - Run `aws sts get-caller-identity` to detect AWS
    - Run `doctl account get` to detect DigitalOcean
@@ -40,12 +40,12 @@ Do NOT ask about:
 
 **For AWS:**
 ```bash
-hookr deploy aws <DOMAIN> <REGION>
+hookd deploy aws <DOMAIN> <REGION>
 ```
 
 **For DigitalOcean:**
 ```bash
-hookr deploy digitalocean <DOMAIN> <REGION>
+hookd deploy digitalocean <DOMAIN> <REGION>
 ```
 
 Capture the output — extract the **public IP** and **instance ID** from the command output.
@@ -61,7 +61,7 @@ aws ec2 describe-subnets --region <REGION> --filters "Name=vpc-id,Values=<VPC_ID
 ```
 Pick a VPC and a **public** subnet (one with `MapPublicIpOnLaunch=True`), then retry:
 ```bash
-hookr deploy aws <DOMAIN> <REGION> --vpc-id <VPC_ID> --subnet-id <SUBNET_ID>
+hookd deploy aws <DOMAIN> <REGION> --vpc-id <VPC_ID> --subnet-id <SUBNET_ID>
 ```
 If no VPCs exist at all, tell the user and abort.
 
@@ -75,7 +75,7 @@ Check if you can manage DNS programmatically:
 
 **AWS Route 53:**
 ```bash
-# Extract the base domain from the full domain (e.g. acmecorp.com from hookr.acmecorp.com)
+# Extract the base domain from the full domain (e.g. acmecorp.com from hookd.acmecorp.com)
 BASE_DOMAIN=$(echo "<DOMAIN>" | awk -F. '{print $(NF-1)"."$NF}')
 
 # Find the hosted zone
@@ -128,7 +128,7 @@ done
 
 If health checks time out, SSH in and check logs:
 ```bash
-ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'tail -50 /var/log/cloud-init-output.log'
+ssh -i ~/.ssh/hookd-deploy-key.pem ubuntu@<PUBLIC_IP> 'tail -50 /var/log/cloud-init-output.log'
 ```
 
 If you cannot reach the server at all (no outbound network), tell the user and abort. They can verify manually by SSHing into the server.
@@ -140,29 +140,29 @@ If you cannot reach the server at all (no outbound network), tell the user and a
 ### Install the CLI
 
 ```bash
-cd /path/to/hookr && npm install -g .
+cd /path/to/hookd && npm install -g .
 ```
 
-Or if hookr is published:
+Or if hookd is published:
 ```bash
-npm install -g hookr
+npm install -g hookd
 ```
 
 ### Retrieve the admin token
 
 ```bash
-ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'sudo cat /opt/hookr/.admin-token'
+ssh -i ~/.ssh/hookd-deploy-key.pem ubuntu@<PUBLIC_IP> 'sudo cat /opt/hookd/.admin-token'
 ```
 
 If SSH is not available from your environment, tell the user:
-> SSH into your server and run: `sudo cat /opt/hookr/.admin-token`
+> SSH into your server and run: `sudo cat /opt/hookd/.admin-token`
 
 ### Configure and create a channel
 
 ```bash
-export HOOKR_ADMIN_TOKEN=<ADMIN_TOKEN_FROM_SERVER>
-hookr login <AUTH_TOKEN> -s https://<DOMAIN>
-hookr channel create -n default -s https://<DOMAIN>
+export HOOKD_ADMIN_TOKEN=<ADMIN_TOKEN_FROM_SERVER>
+hookd login <AUTH_TOKEN> -s https://<DOMAIN>
+hookd channel create -n default -s https://<DOMAIN>
 ```
 
 Capture the **channel ID**, **webhook URL**, and **auth token** from the output.
@@ -178,24 +178,24 @@ If the user mentions a specific provider, set up the channel with signature veri
 1. Ask: "Where is your Stripe API key? (env var name, AWS Secrets Manager path, or paste it)"
 2. Create a Stripe webhook endpoint via the Stripe API
 3. Extract the `whsec_...` signing secret
-4. Create the hookr channel with `--provider stripe --secret "<WHSEC_SECRET>"`
+4. Create the hookd channel with `--provider stripe --secret "<WHSEC_SECRET>"`
 
 ### GitHub
 
 1. Generate a random signing secret: `openssl rand -hex 32`
-2. Create the hookr channel with `--provider github --secret "$WEBHOOK_SECRET"`
+2. Create the hookd channel with `--provider github --secret "$WEBHOOK_SECRET"`
 3. Configure the webhook via `gh api` or tell the user to add it in GitHub Settings
 
 ### Slack
 
 1. Ask for the Slack signing secret (from api.slack.com → App → Basic Information)
-2. Create the hookr channel with `--provider slack --secret "<SLACK_SIGNING_SECRET>"`
+2. Create the hookd channel with `--provider slack --secret "<SLACK_SIGNING_SECRET>"`
 
 ### Generic / Unknown provider
 
 Create a channel without verification:
 ```bash
-hookr channel create -n webhooks -s https://<DOMAIN>
+hookd channel create -n webhooks -s https://<DOMAIN>
 ```
 
 ---
@@ -206,13 +206,13 @@ Send a test webhook to confirm the full pipeline works.
 
 ```bash
 # Start listener in background
-hookr listen <CHANNEL_ID> --target http://localhost:3000 --json &
+hookd listen <CHANNEL_ID> --target http://localhost:3000 --json &
 LISTENER_PID=$!
 
 # Send a test event
 curl -X POST "https://<DOMAIN>/h/<CHANNEL_ID>" \
   -H "Content-Type: application/json" \
-  -d '{"test": true, "source": "deploy-hookr-skill"}'
+  -d '{"test": true, "source": "deploy-hookd-skill"}'
 
 # Kill listener
 kill $LISTENER_PID 2>/dev/null
@@ -235,26 +235,26 @@ curl -s -o /dev/null -w "%{http_code}" \
 Present a clear summary:
 
 ```
-hookr is deployed and ready.
+hookd is deployed and ready.
 
   Server:       https://<DOMAIN>
   Health:       https://<DOMAIN>/health
   Webhook URL:  https://<DOMAIN>/h/<CHANNEL_ID>
   Instance:     <INSTANCE_ID> (<REGION>)
   IP:           <PUBLIC_IP>
-  SSH:          ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP>
+  SSH:          ssh -i ~/.ssh/hookd-deploy-key.pem ubuntu@<PUBLIC_IP>
 
   Verification: <PROVIDER> (HMAC-SHA256) — forged webhooks rejected
   Signing secret stored in: <LOCATION>
 
   Listen locally:
-    hookr listen <CHANNEL_ID> --target http://localhost:8080/webhook
+    hookd listen <CHANNEL_ID> --target http://localhost:8080/webhook
 
   Management:
-    hookr manage status
-    hookr manage update
-    hookr manage logs
-    hookr manage backup
+    hookd manage status
+    hookd manage update
+    hookd manage logs
+    hookd manage backup
 ```
 
 ---
@@ -263,9 +263,9 @@ hookr is deployed and ready.
 
 | File | Purpose |
 |------|---------|
-| `src/cli/commands/deploy/` | `hookr deploy` — AWS/DigitalOcean provisioning + teardown |
-| `deploy/cloud-init.sh` | Server provisioning (Docker, hookr, Caddy) — runs on remote VM |
-| `src/cli/commands/manage/` | `hookr manage` — remote server management via SSH |
+| `src/cli/commands/deploy/` | `hookd deploy` — AWS/DigitalOcean provisioning + teardown |
+| `deploy/cloud-init.sh` | Server provisioning (Docker, hookd, Caddy) — runs on remote VM |
+| `src/cli/commands/manage/` | `hookd manage` — remote server management via SSH |
 | `src/server/verify.ts` | Signature verification (GitHub, Stripe, Slack) |
 | `src/cli/commands/setup.ts` | Interactive setup wizard |
 | `src/cli/commands/channel.ts` | Channel CRUD (create, list, inspect, delete) |

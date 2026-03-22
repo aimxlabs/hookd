@@ -5,7 +5,10 @@ import { loadConfig, saveConfig } from "../../config.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-function prompt(rl: ReturnType<typeof createInterface>, question: string): Promise<string> {
+function prompt(
+  rl: ReturnType<typeof createInterface>,
+  question: string,
+): Promise<string> {
   return new Promise((resolve) => rl.question(question, resolve));
 }
 
@@ -13,10 +16,13 @@ export const initSubcommand = new Command("init")
   .description("Save SSH connection details for remote management")
   .action(async () => {
     const config = loadConfig();
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
 
     try {
-      console.log(chalk.bold("\nhookr manage — remote configuration\n"));
+      console.log(chalk.bold("\nhookd manage — remote configuration\n"));
 
       const host = await prompt(
         rl,
@@ -24,7 +30,7 @@ export const initSubcommand = new Command("init")
       );
       const sshKey = await prompt(
         rl,
-        `  SSH key path${chalk.dim(` (${config.sshKey || join(homedir(), ".ssh", "hookr-deploy-key.pem")})`)}: `,
+        `  SSH key path${chalk.dim(` (${config.sshKey || join(homedir(), ".ssh", "hookd-deploy-key.pem")})`)}: `,
       );
       const sshUser = await prompt(
         rl,
@@ -32,7 +38,7 @@ export const initSubcommand = new Command("init")
       );
       const remoteDir = await prompt(
         rl,
-        `  Remote directory${chalk.dim(` (${config.remoteDir || "/opt/hookr"})`)}: `,
+        `  Remote directory${chalk.dim(` (${config.remoteDir || "/opt/hookd"})`)}: `,
       );
 
       if (host) config.remoteHost = host;
@@ -47,8 +53,10 @@ export const initSubcommand = new Command("init")
 
       saveConfig(config);
 
-      console.log(chalk.green("\n  Configuration saved to ~/.hookr/config.json"));
-      console.log(chalk.dim(`\n  Try: hookr manage status\n`));
+      console.log(
+        chalk.green("\n  Configuration saved to ~/.hookd/config.json"),
+      );
+      console.log(chalk.dim(`\n  Try: hookd manage status\n`));
     } finally {
       rl.close();
     }

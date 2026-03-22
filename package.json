@@ -1,12 +1,12 @@
 {
-  "name": "hookr",
+  "name": "hookd",
   "version": "0.1.0",
   "description": "Webhook relay for AI agents — receive, verify, and forward webhooks in real-time",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "hookr": "./dist/bin/hookr.js"
+    "hookd": "./dist/bin/hookd.js"
   },
   "scripts": {
     "build": "tsup",
@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "lint": "prettier --check src/ test/",
     "format": "prettier --write src/ test/",
-    "start": "node dist/bin/hookr.js"
+    "start": "node dist/bin/hookd.js"
   },
   "keywords": [
     "webhook",

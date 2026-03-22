@@ -4,21 +4,30 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import chalk from "chalk";
 import { execSync } from "node:child_process";
-import { cloudInitScript, run, runInherit, waitForHealthIP } from "./helpers.js";
+import {
+  cloudInitScript,
+  run,
+  runInherit,
+  waitForHealthIP,
+} from "./helpers.js";
 
 export const digitaloceanSubcommand = new Command("digitalocean")
   .alias("do")
-  .description("Deploy hookr to a DigitalOcean Droplet (~$6/month, ~3 min)")
-  .argument("<domain>", "Domain name (e.g. hookr.example.com)")
+  .description("Deploy hookd to a DigitalOcean Droplet (~$6/month, ~3 min)")
+  .argument("<domain>", "Domain name (e.g. hookd.example.com)")
   .argument("[region]", "Droplet region", "nyc1")
   .option("--size <size>", "Droplet size slug", "s-1vcpu-1gb")
-  .option("--name <name>", "Droplet name", "hookr-server")
-  .option("--repo <url>", "Git repository URL for hookr source", "https://github.com/aimxlabs/hookr.git")
+  .option("--name <name>", "Droplet name", "hookd-server")
+  .option(
+    "--repo <url>",
+    "Git repository URL for hookd source",
+    "https://github.com/aimxlabs/hookd.git",
+  )
   .action(async (domain: string, region: string, opts) => {
     const { size, name, repo } = opts;
 
     console.log();
-    console.log(chalk.bold("==>") + " Deploying hookr to DigitalOcean");
+    console.log(chalk.bold("==>") + " Deploying hookd to DigitalOcean");
     console.log(`    Domain: ${domain}`);
     console.log(`    Region: ${region}`);
     console.log(`    Size:   ${size}`);
@@ -26,12 +35,19 @@ export const digitaloceanSubcommand = new Command("digitalocean")
 
     // ── Step 1: SSH Key ────────────────────────────────────────────
     process.stdout.write(chalk.blue("==>") + " Setting up SSH key...\n");
-    const keyFile = join(homedir(), ".ssh", "hookr-deploy-key");
+    const keyFile = join(homedir(), ".ssh", "hookd-deploy-key");
     const pubKeyFile = `${keyFile}.pub`;
 
     if (!existsSync(keyFile)) {
       const genCode = await runInherit("ssh-keygen", [
-        "-t", "ed25519", "-f", keyFile, "-N", "", "-C", "hookr-deploy",
+        "-t",
+        "ed25519",
+        "-f",
+        keyFile,
+        "-N",
+        "",
+        "-C",
+        "hookd-deploy",
       ]);
       if (genCode !== 0) {
         console.error(chalk.red("Failed to generate SSH key"));
@@ -45,7 +61,9 @@ export const digitaloceanSubcommand = new Command("digitalocean")
     // Get fingerprint
     let fingerprint: string;
     try {
-      const out = execSync(`ssh-keygen -l -E md5 -f ${pubKeyFile}`, { encoding: "utf8" });
+      const out = execSync(`ssh-keygen -l -E md5 -f ${pubKeyFile}`, {
+        encoding: "utf8",
+      });
       fingerprint = out.trim().split(" ")[1].replace("MD5:", "");
     } catch {
       console.error(chalk.red("Failed to get SSH key fingerprint"));
@@ -53,18 +71,27 @@ export const digitaloceanSubcommand = new Command("digitalocean")
     }
 
     // Import key to DigitalOcean if needed
-    const keyCheck = await run("doctl", ["compute", "ssh-key", "get", fingerprint]);
+    const keyCheck = await run("doctl", [
+      "compute",
+      "ssh-key",
+      "get",
+      fingerprint,
+    ]);
     if (keyCheck.code !== 0) {
       const importResult = await run("doctl", [
         "compute",
         "ssh-key",
         "import",
-        "hookr-deploy-key",
+        "hookd-deploy-key",
         "--public-key-file",
         pubKeyFile,
       ]);
       if (importResult.code !== 0) {
-        console.error(chalk.red("Failed to import SSH key to DigitalOcean. Is doctl authenticated?"));
+        console.error(
+          chalk.red(
+            "Failed to import SSH key to DigitalOcean. Is doctl authenticated?",
+          ),
+        );
         console.error(importResult.stderr);
         process.exit(1);
       }
@@ -72,7 +99,9 @@ export const digitaloceanSubcommand = new Command("digitalocean")
     }
 
     // ── Step 2: Create Droplet ─────────────────────────────────────
-    process.stdout.write(chalk.blue("==>") + " Creating Droplet (this may take a minute)...\n");
+    process.stdout.write(
+      chalk.blue("==>") + " Creating Droplet (this may take a minute)...\n",
+    );
     const userData = cloudInitScript(domain, repo);
 
     const dropletResult = await run("doctl", [
@@ -91,7 +120,7 @@ export const digitaloceanSubcommand = new Command("digitalocean")
       "--user-data",
       userData,
       "--tag-name",
-      "hookr",
+      "hookd",
       "--wait",
       "--format",
       "ID",
@@ -127,10 +156,11 @@ export const digitaloceanSubcommand = new Command("digitalocean")
     const reservedIp = ipResult.stdout;
     console.log(`    Static IP: ${reservedIp}`);
 
-    // ── Step 4: Wait for hookr ─────────────────────────────────────
+    // ── Step 4: Wait for hookd ─────────────────────────────────────
     console.log();
     console.log(
-      chalk.blue("==>") + " hookr is installing on the server (this takes 2-3 minutes)...",
+      chalk.blue("==>") +
+        " hookd is installing on the server (this takes 2-3 minutes)...",
     );
     console.log(
       `    Watch progress: ssh -i ${keyFile} root@${reservedIp} 'tail -f /var/log/cloud-init-output.log'`,
@@ -143,7 +173,7 @@ export const digitaloceanSubcommand = new Command("digitalocean")
     console.log();
     console.log("=".repeat(72));
     console.log();
-    console.log("  " + chalk.green("hookr server deployed!"));
+    console.log("  " + chalk.green("hookd server deployed!"));
     console.log();
     console.log(`  Droplet:     ${dropletId}`);
     console.log(`  Public IP:   ${reservedIp}`);
@@ -160,7 +190,7 @@ export const digitaloceanSubcommand = new Command("digitalocean")
     console.log(`  After DNS is set, verify:  https://${domain}/health`);
     console.log();
     console.log("  Then on your local machine:");
-    console.log(`    hookr setup -s https://${domain}`);
+    console.log(`    hookd setup -s https://${domain}`);
     console.log();
     console.log("=".repeat(72));
     console.log();

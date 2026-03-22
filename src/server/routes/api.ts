@@ -53,9 +53,9 @@ function isValidCallbackUrl(raw: string): boolean {
 
   // Block cloud metadata endpoints
   const blockedHostnames = new Set([
-    "169.254.169.254",           // AWS/Azure/GCP instance metadata
-    "metadata.google.internal",  // GCP metadata
-    "metadata.azure.com",        // Azure metadata
+    "169.254.169.254", // AWS/Azure/GCP instance metadata
+    "metadata.google.internal", // GCP metadata
+    "metadata.azure.com", // Azure metadata
   ]);
   if (blockedHostnames.has(hostname)) return false;
 
@@ -75,21 +75,22 @@ function isValidCallbackUrl(raw: string): boolean {
   const ipv4Match = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
   if (ipv4Match) {
     const [, a, b] = ipv4Match.map(Number);
-    if (a === 0) return false;                            // 0.0.0.0/8 "this" network
-    if (a === 10) return false;                           // 10.0.0.0/8
-    if (a === 100 && b >= 64 && b <= 127) return false;   // 100.64.0.0/10 CGN
-    if (a === 127) return false;                          // 127.0.0.0/8 loopback
-    if (a === 169 && b === 254) return false;              // 169.254.0.0/16 link-local
-    if (a === 172 && b >= 16 && b <= 31) return false;    // 172.16.0.0/12
-    if (a === 192 && b === 168) return false;              // 192.168.0.0/16
+    if (a === 0) return false; // 0.0.0.0/8 "this" network
+    if (a === 10) return false; // 10.0.0.0/8
+    if (a === 100 && b >= 64 && b <= 127) return false; // 100.64.0.0/10 CGN
+    if (a === 127) return false; // 127.0.0.0/8 loopback
+    if (a === 169 && b === 254) return false; // 169.254.0.0/16 link-local
+    if (a === 172 && b >= 16 && b <= 31) return false; // 172.16.0.0/12
+    if (a === 192 && b === 168) return false; // 192.168.0.0/16
   }
 
   // Block IPv6 private ranges (bracket-wrapped in URLs)
   const bare = hostname.replace(/^\[|\]$/g, "");
   if (
-    bare.startsWith("fc") || bare.startsWith("fd") ||  // ULA
-    bare.startsWith("fe80") ||                          // link-local
-    bare === "::1"                                      // loopback
+    bare.startsWith("fc") ||
+    bare.startsWith("fd") || // ULA
+    bare.startsWith("fe80") || // link-local
+    bare === "::1" // loopback
   ) {
     return false;
   }
@@ -99,12 +100,12 @@ function isValidCallbackUrl(raw: string): boolean {
 
 /**
  * Require admin token for management endpoints.
- * Admin token is set via HOOKR_ADMIN_TOKEN env var.
+ * Admin token is set via HOOKD_ADMIN_TOKEN env var.
  * If no admin token is configured, management endpoints are unrestricted
  * (assumes localhost-only access).
  */
 function requireAdmin(c: { req: any }): Response | null {
-  const adminToken = process.env.HOOKR_ADMIN_TOKEN;
+  const adminToken = process.env.HOOKD_ADMIN_TOKEN;
   if (!adminToken) return null; // No admin token configured — allow (local dev)
 
   const provided = extractToken(c);
@@ -138,7 +139,9 @@ api.post("/api/channels", async (c) => {
 
   if (body.provider && !VALID_PROVIDERS.has(body.provider)) {
     return c.json(
-      { error: `Invalid provider — must be one of: ${[...VALID_PROVIDERS].join(", ")}` },
+      {
+        error: `Invalid provider — must be one of: ${[...VALID_PROVIDERS].join(", ")}`,
+      },
       400,
     );
   }

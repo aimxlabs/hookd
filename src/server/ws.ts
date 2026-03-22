@@ -89,7 +89,10 @@ function handleSubscribe(conn: AgentConnection, channelId: string): void {
 
   if (!channel) {
     conn.ws.send(
-      JSON.stringify({ type: "error", message: `Channel ${channelId} not found` }),
+      JSON.stringify({
+        type: "error",
+        message: `Channel ${channelId} not found`,
+      }),
     );
     return;
   }
@@ -102,7 +105,10 @@ function handleSubscribe(conn: AgentConnection, channelId: string): void {
     !timingSafeEqual(Buffer.from(token), Buffer.from(channel.authToken))
   ) {
     conn.ws.send(
-      JSON.stringify({ type: "auth_error", message: "Invalid token for channel" }),
+      JSON.stringify({
+        type: "auth_error",
+        message: "Invalid token for channel",
+      }),
     );
     return;
   }
@@ -128,7 +134,10 @@ function handleAck(conn: AgentConnection, eventId: string): void {
 
   if (!event || !conn.channelIds.has(event.channelId)) {
     conn.ws.send(
-      JSON.stringify({ type: "error", message: "Cannot ack event — not subscribed to its channel" }),
+      JSON.stringify({
+        type: "error",
+        message: "Cannot ack event — not subscribed to its channel",
+      }),
     );
     return;
   }

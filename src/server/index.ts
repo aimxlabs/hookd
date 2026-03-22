@@ -27,7 +27,10 @@ export function createApp() {
         handleWsOpen(ws);
       },
       onMessage(evt, ws) {
-        handleWsMessage(ws, typeof evt.data === "string" ? evt.data : evt.data.toString());
+        handleWsMessage(
+          ws,
+          typeof evt.data === "string" ? evt.data : evt.data.toString(),
+        );
       },
       onClose(evt, ws) {
         handleWsClose(ws);
@@ -56,10 +59,14 @@ export function startServer(options: ServerOptions) {
       hostname: options.host,
     },
     (info) => {
-      const base = options.publicUrl?.replace(/\/+$/, "") || `http://localhost:${info.port}`;
+      const base =
+        options.publicUrl?.replace(/\/+$/, "") ||
+        `http://localhost:${info.port}`;
       const wsBase = base.replace(/^http/, "ws");
 
-      console.log(`hookr server listening on http://${options.host}:${info.port}`);
+      console.log(
+        `hookd server listening on http://${options.host}:${info.port}`,
+      );
       console.log();
       console.log(`  Webhook URL: ${base}/h/<channelId>`);
       console.log(`  WebSocket:   ${wsBase}/ws`);
@@ -68,9 +75,11 @@ export function startServer(options: ServerOptions) {
 
       if (!options.publicUrl) {
         console.log();
-        console.log(`  Tip: if this server is publicly accessible, start with:`);
-        console.log(`    hookr serve --public-url https://your-domain.com`);
-        console.log(`  or set HOOKR_PUBLIC_URL in your environment.`);
+        console.log(
+          `  Tip: if this server is publicly accessible, start with:`,
+        );
+        console.log(`    hookd serve --public-url https://your-domain.com`);
+        console.log(`  or set HOOKD_PUBLIC_URL in your environment.`);
       }
     },
   );

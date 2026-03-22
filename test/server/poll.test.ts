@@ -66,10 +66,9 @@ describe("poll endpoint", () => {
     const { id: channelId, authToken } = createChannel();
     const evtId = insertEvent(channelId);
 
-    const res = await app.request(
-      `/api/channels/${channelId}/poll`,
-      { headers: { Authorization: `Bearer ${authToken}` } },
-    );
+    const res = await app.request(`/api/channels/${channelId}/poll`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
@@ -84,10 +83,9 @@ describe("poll endpoint", () => {
       deliveredAt: Math.floor(Date.now() / 1000),
     });
 
-    const res = await app.request(
-      `/api/channels/${channelId}/poll`,
-      { headers: { Authorization: `Bearer ${authToken}` } },
-    );
+    const res = await app.request(`/api/channels/${channelId}/poll`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
@@ -105,18 +103,16 @@ describe("poll endpoint", () => {
   it("rejects wrong token", async () => {
     const { id: channelId } = createChannel();
 
-    const res = await app.request(
-      `/api/channels/${channelId}/poll`,
-      { headers: { Authorization: "Bearer tok_wrong" } },
-    );
+    const res = await app.request(`/api/channels/${channelId}/poll`, {
+      headers: { Authorization: "Bearer tok_wrong" },
+    });
     expect(res.status).toBe(401);
   });
 
   it("returns 404 for unknown channel", async () => {
-    const res = await app.request(
-      "/api/channels/ch_nonexistent/poll",
-      { headers: { Authorization: "Bearer tok_anything" } },
-    );
+    const res = await app.request("/api/channels/ch_nonexistent/poll", {
+      headers: { Authorization: "Bearer tok_anything" },
+    });
     expect(res.status).toBe(404);
   });
 
@@ -127,10 +123,9 @@ describe("poll endpoint", () => {
     insertEvent(channelId, { receivedAt: now - 1 });
     insertEvent(channelId, { receivedAt: now });
 
-    const res = await app.request(
-      `/api/channels/${channelId}/poll?limit=2`,
-      { headers: { Authorization: `Bearer ${authToken}` } },
-    );
+    const res = await app.request(`/api/channels/${channelId}/poll?limit=2`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
 
     const body = (await res.json()) as any;
     expect(body.events).toHaveLength(2);
@@ -158,10 +153,9 @@ describe("poll endpoint", () => {
     const { id: channelId, authToken } = createChannel();
     insertEvent(channelId);
 
-    const res = await app.request(
-      `/api/channels/${channelId}/poll`,
-      { headers: { Authorization: `Bearer ${authToken}` } },
-    );
+    const res = await app.request(`/api/channels/${channelId}/poll`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
 
     const body = (await res.json()) as any;
     expect(body.events[0].headers).toEqual({
@@ -235,10 +229,9 @@ describe("ack endpoint", () => {
     expect(body.acknowledged).toBe(1);
 
     // Verify event is now delivered — poll should return nothing
-    const pollRes = await app.request(
-      `/api/channels/${channelId}/poll`,
-      { headers: { Authorization: `Bearer ${authToken}` } },
-    );
+    const pollRes = await app.request(`/api/channels/${channelId}/poll`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
     const pollBody = (await pollRes.json()) as any;
     expect(pollBody.events).toHaveLength(0);
   });

@@ -14,9 +14,7 @@ export function requireRemote(cmd: Command): RemoteConfig {
   });
   if (!remote) {
     console.error(chalk.red("No remote host configured."));
-    console.error(
-      chalk.dim("Pass --host <ip> or run: hookr manage init"),
-    );
+    console.error(chalk.dim("Pass --host <ip> or run: hookd manage init"));
     process.exit(1);
   }
   return remote;
@@ -35,7 +33,7 @@ export async function waitForHealth(
         signal: AbortSignal.timeout(3000),
       });
       if (res.ok) {
-        spinner.succeed("hookr is healthy");
+        spinner.succeed("hookd is healthy");
         return true;
       }
     } catch {
@@ -44,7 +42,7 @@ export async function waitForHealth(
           signal: AbortSignal.timeout(3000),
         });
         if (res.ok) {
-          spinner.succeed("hookr is healthy");
+          spinner.succeed("hookd is healthy");
           return true;
         }
       } catch {
@@ -53,6 +51,6 @@ export async function waitForHealth(
     }
     await new Promise((r) => setTimeout(r, intervalMs));
   }
-  spinner.warn("Health check timed out — hookr may still be starting");
+  spinner.warn("Health check timed out — hookd may still be starting");
   return false;
 }

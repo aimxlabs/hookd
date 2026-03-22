@@ -5,5 +5,5 @@ dist/
 .env
 .env.local
 coverage/
-.hookr/
+.hookd/
 .DS_Store

@@ -9,7 +9,7 @@ export const statusSubcommand = new Command("status")
   .action(async function (this: Command) {
     const remote = requireRemote(this);
 
-    console.log(chalk.bold("\nhookr server status"));
+    console.log(chalk.bold("\nhookd server status"));
     console.log(chalk.dim(`  Host: ${remote.host}\n`));
 
     // Container status

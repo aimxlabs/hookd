@@ -1,6 +1,6 @@
 # Provider Verification Reference
 
-Detailed provider configuration for hookr webhook channels. Read this when setting up a specific provider in Phase 6.
+Detailed provider configuration for hookd webhook channels. Read this when setting up a specific provider in Phase 6.
 
 ## Stripe
 
@@ -18,9 +18,9 @@ curl -s https://api.stripe.com/v1/webhook_endpoints \
   -d "enabled_events[]=customer.subscription.deleted"
 ```
 4. Extract the `secret` field (the `whsec_...` signing secret) from the response
-5. Create the hookr channel with verification:
+5. Create the hookd channel with verification:
 ```bash
-hookr channel create \
+hookd channel create \
   -n stripe-webhooks \
   --provider stripe \
   --secret "<WHSEC_SECRET>" \
@@ -31,9 +31,9 @@ hookr channel create \
 
 - Stripe signs every webhook with HMAC-SHA256 using the signing secret
 - The signature and timestamp are in the `Stripe-Signature` header: `t=<timestamp>,v1=<signature>`
-- hookr reconstructs the expected signature: `HMAC_SHA256(key=whsec_..., data="{timestamp}.{body}")`
+- hookd reconstructs the expected signature: `HMAC_SHA256(key=whsec_..., data="{timestamp}.{body}")`
 - If signatures don't match → 401 rejected
-- hookr uses timing-safe comparison to prevent timing attacks
+- hookd uses timing-safe comparison to prevent timing attacks
 
 ## GitHub
 
@@ -43,9 +43,9 @@ hookr channel create \
 ```bash
 WEBHOOK_SECRET=$(openssl rand -hex 32)
 ```
-2. Create the hookr channel with verification:
+2. Create the hookd channel with verification:
 ```bash
-hookr channel create \
+hookd channel create \
   -n github-webhooks \
   --provider github \
   --secret "$WEBHOOK_SECRET" \
@@ -62,16 +62,16 @@ gh api repos/<OWNER>/<REPO>/hooks -f url="https://<DOMAIN>/h/<CHANNEL_ID>" \
 
 - GitHub signs the payload with HMAC-SHA256 using the shared secret
 - The signature is in the `X-Hub-Signature-256` header: `sha256=<hex_digest>`
-- hookr computes `HMAC_SHA256(key=secret, data=raw_body)` and compares
+- hookd computes `HMAC_SHA256(key=secret, data=raw_body)` and compares
 
 ## Slack
 
 ### Full setup steps
 
 1. Ask for the Slack signing secret (from api.slack.com → App → Basic Information)
-2. Create the hookr channel:
+2. Create the hookd channel:
 ```bash
-hookr channel create \
+hookd channel create \
   -n slack-events \
   --provider slack \
   --secret "<SLACK_SIGNING_SECRET>" \
@@ -81,7 +81,7 @@ hookr channel create \
 ### How Slack verification works
 
 - Slack sends `X-Slack-Signature` and `X-Slack-Request-Timestamp` headers
-- hookr constructs `v0:{timestamp}:{body}` and computes `HMAC_SHA256(key=secret, data=baseString)`
+- hookd constructs `v0:{timestamp}:{body}` and computes `HMAC_SHA256(key=secret, data=baseString)`
 - Expected format: `v0=<hex_digest>`
 
 ## Provider summary
@@ -95,14 +95,14 @@ hookr channel create \
 
 ## Security model
 
-hookr has two levels of authentication:
+hookd has two levels of authentication:
 
 | Token | Env var / flag | Used for | Scope |
 |-------|---------------|----------|-------|
-| **Admin token** | `HOOKR_ADMIN_TOKEN` / `--admin-token` | Channel create, delete | Server-wide |
-| **Channel token** | `HOOKR_TOKEN` / `--token` | Listen, poll, ack, inspect events | Per-channel |
+| **Admin token** | `HOOKD_ADMIN_TOKEN` / `--admin-token` | Channel create, delete | Server-wide |
+| **Channel token** | `HOOKD_TOKEN` / `--token` | Listen, poll, ack, inspect events | Per-channel |
 
-- If `HOOKR_ADMIN_TOKEN` is not set on the server, channel management endpoints are unrestricted (safe for local dev).
+- If `HOOKD_ADMIN_TOKEN` is not set on the server, channel management endpoints are unrestricted (safe for local dev).
 - Webhook providers (GitHub, Stripe, Slack) authenticate via HMAC signature verification — they don't use either token.
 - Webhook payloads are limited to 1 MB.
 - Callback URLs are validated to prevent SSRF (private IPs and metadata endpoints are blocked).
@@ -112,6 +112,6 @@ hookr has two levels of authentication:
 
 - **Deploy command fails**: Check AWS/DO credentials, try `aws sts get-caller-identity`
 - **Health check times out**: SSH in, check `tail -f /var/log/cloud-init-output.log`
-- **HTTPS not working**: Verify DNS with `dig <DOMAIN>`, check Caddy logs via `hookr manage logs --service caddy --no-follow`
+- **HTTPS not working**: Verify DNS with `dig <DOMAIN>`, check Caddy logs via `hookd manage logs --service caddy --no-follow`
 - **Webhook verification fails**: Ensure the signing secret matches exactly what the provider expects
 - **WebSocket disconnects**: The listener auto-reconnects with exponential backoff + jitter
