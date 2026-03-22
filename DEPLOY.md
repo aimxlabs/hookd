@@ -25,9 +25,6 @@ hookr deploy aws hookr.example.com
 
 # Optional: specify region and instance type
 hookr deploy aws hookr.example.com us-west-2 --instance-type t3.micro
-
-# Optional: use a custom repo URL (if the default is private or unavailable)
-hookr deploy aws hookr.example.com --repo https://github.com/your-org/hookr.git
 ```
 
 ### DigitalOcean
@@ -42,9 +39,6 @@ hookr deploy digitalocean hookr.example.com
 
 # Optional: specify region and size
 hookr deploy digitalocean hookr.example.com sfo1 --size s-1vcpu-2gb
-
-# Optional: use a custom repo URL
-hookr deploy digitalocean hookr.example.com --repo https://github.com/your-org/hookr.git
 ```
 
 ### After deploying
@@ -151,9 +145,8 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
 apt-get update -y
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# Clone and start hookr (set HOOKR_REPO to use a custom repo URL)
-HOOKR_REPO="${HOOKR_REPO:-https://github.com/aimxlabs/hookr.git}"
-git clone "$HOOKR_REPO" /opt/hookr
+# Clone and start hookr
+git clone https://github.com/aimxlabs/hookr.git /opt/hookr
 cd /opt/hookr
 ADMIN_TOKEN=$(openssl rand -hex 32)
 cat > .env <<EOF2
