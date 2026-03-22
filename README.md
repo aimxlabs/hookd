@@ -39,7 +39,7 @@ hookd listen <channel-id> --target http://127.0.0.1:18789/hooks/wake
 
 1. Create a **channel** — get a unique webhook URL
 2. Point your 3rd party service (GitHub, Stripe, etc.) at the webhook URL
-3. Consume events via any of three delivery modes:
+3. From your local machine, consume webhook events via any of three delivery modes:
    - **`hookd listen`** — real-time WebSocket push (persistent connection)
    - **`hookd poll`** — HTTP polling (cron-friendly, no persistent connection)
    - **HTTP callback** — hookd POSTs to a URL you configure
