@@ -384,6 +384,51 @@ hookd manage logs
 
 ---
 
+## Docker quickstart (no CLI deploy)
+
+If you already have a VPS with Docker installed and a domain pointing at it:
+
+```bash
+git clone https://github.com/aimxlabs/hookd.git && cd hookd
+cp .env.example .env
+# Edit .env — set HOOKD_DOMAIN and HOOKD_ADMIN_TOKEN
+docker compose up -d
+```
+
+Caddy automatically provisions HTTPS via Let's Encrypt. Visit `https://your-domain.com/health` to verify.
+
+> **Tip:** Generate an admin token with `openssl rand -hex 32` and set it as `HOOKD_ADMIN_TOKEN` in `.env`. Without it, channel management endpoints are unrestricted.
+
+## Manual deployment (without Docker)
+
+```bash
+npm install -g hookd
+hookd serve --public-url https://hookd.example.com
+```
+
+You'll need to put hookd behind a reverse proxy (Nginx, Caddy) for HTTPS and manage the process yourself (systemd, pm2, etc.).
+
+## Environment variables
+
+For CI/CD, Docker, or cron, use environment variables instead of the config file:
+
+```bash
+export HOOKD_SERVER=https://hookd.example.com
+export HOOKD_TOKEN=tok_xyz789                  # channel auth token (for listen/poll/inspect)
+export HOOKD_ADMIN_TOKEN=<your-admin-token>    # admin token (for channel CRUD)
+
+hookd poll ch_a1b2c3d4 --target http://localhost:3000
+```
+
+All commands resolve the server URL and auth token in this order:
+
+1. **CLI flags** (`--server`, `--token`) — highest priority
+2. **Environment variables** (`HOOKD_SERVER`, `HOOKD_TOKEN`)
+3. **Config file** (`~/.hookd/config.json`) — saved by `hookd login` or `hookd setup`
+4. **Default** — `http://localhost:4801`
+
+---
+
 ## Troubleshooting
 
 ### "Could not connect" when running hookd setup
