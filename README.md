@@ -114,38 +114,6 @@ Point GitHub's webhook settings at your hookd URL (`https://hookd.example.com/h/
 */1 * * * * hookd poll <channel-id> --target http://127.0.0.1:18789/hooks/wake
 ```
 
-### nanobot
-
-nanobot doesn't have an HTTP webhook receiver yet. hookd fills this gap:
-
-**JSON stdout** — pipe events into a handler script:
-
-```bash
-hookd listen <channel-id> --json \
-  | while IFS= read -r event; do
-      echo "$event" | jq -r '.body' | nanobot run --stdin
-    done
-```
-
-**HTTP callback** — skip the CLI entirely:
-
-```bash
-hookd channel create \
-  --name stripe-payments \
-  --provider stripe \
-  --secret "$STRIPE_WEBHOOK_SECRET" \
-  --callback-url http://127.0.0.1:9090/nanobot-bridge
-```
-
-When no WebSocket client is connected, hookd POSTs verified events directly to the callback URL.
-
-**Cron polling:**
-
-```bash
-*/5 * * * * hookd poll <channel-id> \
-  | while IFS= read -r event; do echo "$event" | jq -r '.body' | nanobot run --stdin; done
-```
-
 ### Any Agent (Generic Pattern)
 
 | Mode | Command | Best for |
