@@ -4,16 +4,16 @@ import { requireRemote, waitForHealth } from "./helpers.js";
 import { compose } from "../../ssh.js";
 
 export const restartSubcommand = new Command("restart")
-  .description("Restart hookr containers")
+  .description("Restart hookd containers")
   .action(async function (this: Command) {
     const remote = requireRemote(this);
 
-    console.log(chalk.blue("==>") + " Restarting hookr...");
+    console.log(chalk.blue("==>") + " Restarting hookd...");
     const code = await compose(remote, "restart");
     if (code !== 0) {
-      console.error(chalk.red("Failed to restart hookr"));
+      console.error(chalk.red("Failed to restart hookd"));
       process.exit(1);
     }
-    console.log(chalk.green("==>") + " hookr restarted\n");
+    console.log(chalk.green("==>") + " hookd restarted\n");
     await waitForHealth(remote.host);
   });

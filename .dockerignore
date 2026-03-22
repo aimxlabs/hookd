@@ -7,6 +7,6 @@ dist
 .git
 .env
 .env.local
-.hookr
+.hookd
 coverage
 test

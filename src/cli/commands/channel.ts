@@ -2,17 +2,20 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { resolveServerUrl } from "../config.js";
 
-export const channelCommand = new Command("channel")
-  .description("Manage webhook channels");
+export const channelCommand = new Command("channel").description(
+  "Manage webhook channels",
+);
 
-/** Resolve admin token from flag or HOOKR_ADMIN_TOKEN env var. */
+/** Resolve admin token from flag or HOOKD_ADMIN_TOKEN env var. */
 function resolveAdminToken(flagValue?: string): string | undefined {
-  return flagValue || process.env.HOOKR_ADMIN_TOKEN;
+  return flagValue || process.env.HOOKD_ADMIN_TOKEN;
 }
 
 /** Build Authorization header if an admin token is available. */
 function adminHeaders(adminToken?: string): Record<string, string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (adminToken) {
     headers["Authorization"] = `Bearer ${adminToken}`;
   }
@@ -23,11 +26,14 @@ channelCommand
   .command("create")
   .description("Create a new webhook channel")
   .requiredOption("-n, --name <name>", "Channel name")
-  .option("--provider <provider>", "Webhook provider (github, stripe, slack, generic)")
+  .option(
+    "--provider <provider>",
+    "Webhook provider (github, stripe, slack, generic)",
+  )
   .option("--secret <secret>", "Webhook signing secret")
   .option("--callback-url <url>", "HTTP fallback URL for delivery")
   .option("-s, --server <url>", "Server URL")
-  .option("--admin-token <token>", "Admin token (or set HOOKR_ADMIN_TOKEN)")
+  .option("--admin-token <token>", "Admin token (or set HOOKD_ADMIN_TOKEN)")
   .action(async (opts) => {
     const baseUrl = resolveServerUrl(opts.server);
     const adminToken = resolveAdminToken(opts.adminToken);
@@ -47,12 +53,14 @@ channelCommand
         const err = await res.json();
         console.error(chalk.red(`Error: ${err.error || res.statusText}`));
         if (res.status === 401) {
-          console.error(chalk.dim("Hint: set HOOKR_ADMIN_TOKEN or pass --admin-token"));
+          console.error(
+            chalk.dim("Hint: set HOOKD_ADMIN_TOKEN or pass --admin-token"),
+          );
         }
         process.exit(1);
       }
 
-      const channel = await res.json() as any;
+      const channel = (await res.json()) as any;
       console.log(chalk.green("Channel created!"));
       console.log();
       console.log(`  ${chalk.bold("ID:")}          ${channel.id}`);
@@ -63,11 +71,15 @@ channelCommand
         console.log(`  ${chalk.bold("Provider:")}    ${channel.provider}`);
       }
       console.log();
-      console.log(chalk.dim("Copy the webhook URL to your provider's webhook settings."));
-      console.log(chalk.dim(`Listen with: hookr listen ${channel.id}`));
+      console.log(
+        chalk.dim("Copy the webhook URL to your provider's webhook settings."),
+      );
+      console.log(chalk.dim(`Listen with: hookd listen ${channel.id}`));
     } catch (err: any) {
       console.error(chalk.red(`Failed to connect to server at ${baseUrl}`));
-      console.error(chalk.dim("Is the server running? Start it with: hookr serve"));
+      console.error(
+        chalk.dim("Is the server running? Start it with: hookd serve"),
+      );
       process.exit(1);
     }
   });
@@ -76,7 +88,7 @@ channelCommand
   .command("list")
   .description("List all channels")
   .option("-s, --server <url>", "Server URL")
-  .option("--admin-token <token>", "Admin token (or set HOOKR_ADMIN_TOKEN)")
+  .option("--admin-token <token>", "Admin token (or set HOOKD_ADMIN_TOKEN)")
   .action(async (opts) => {
     const baseUrl = resolveServerUrl(opts.server);
     const adminToken = resolveAdminToken(opts.adminToken);
@@ -86,18 +98,24 @@ channelCommand
       });
 
       if (!res.ok) {
-        const err = await res.json() as any;
+        const err = (await res.json()) as any;
         console.error(chalk.red(`Error: ${err.error || res.statusText}`));
         if (res.status === 401) {
-          console.error(chalk.dim("Hint: set HOOKR_ADMIN_TOKEN or pass --admin-token"));
+          console.error(
+            chalk.dim("Hint: set HOOKD_ADMIN_TOKEN or pass --admin-token"),
+          );
         }
         process.exit(1);
       }
 
-      const channels = await res.json() as any[];
+      const channels = (await res.json()) as any[];
 
       if (channels.length === 0) {
-        console.log(chalk.dim("No channels found. Create one with: hookr channel create -n <name>"));
+        console.log(
+          chalk.dim(
+            "No channels found. Create one with: hookd channel create -n <name>",
+          ),
+        );
         return;
       }
 
@@ -118,7 +136,7 @@ channelCommand
   .command("delete <id>")
   .description("Delete a channel")
   .option("-s, --server <url>", "Server URL")
-  .option("--admin-token <token>", "Admin token (or set HOOKR_ADMIN_TOKEN)")
+  .option("--admin-token <token>", "Admin token (or set HOOKD_ADMIN_TOKEN)")
   .action(async (id, opts) => {
     const baseUrl = resolveServerUrl(opts.server);
     const adminToken = resolveAdminToken(opts.adminToken);
@@ -137,7 +155,9 @@ channelCommand
         const err = await res.json();
         console.error(chalk.red(`Error: ${err.error || res.statusText}`));
         if (res.status === 401) {
-          console.error(chalk.dim("Hint: set HOOKR_ADMIN_TOKEN or pass --admin-token"));
+          console.error(
+            chalk.dim("Hint: set HOOKD_ADMIN_TOKEN or pass --admin-token"),
+          );
         }
         process.exit(1);
       }
@@ -154,10 +174,10 @@ channelCommand
   .description("Show recent events for a channel")
   .option("-l, --limit <n>", "Number of events to show", "10")
   .option("-s, --server <url>", "Server URL")
-  .option("--token <token>", "Channel auth token (or set HOOKR_TOKEN)")
+  .option("--token <token>", "Channel auth token (or set HOOKD_TOKEN)")
   .action(async (id, opts) => {
     const baseUrl = resolveServerUrl(opts.server);
-    const token = opts.token || process.env.HOOKR_TOKEN;
+    const token = opts.token || process.env.HOOKD_TOKEN;
     try {
       const headers: Record<string, string> = {};
       if (token) {
@@ -173,12 +193,14 @@ channelCommand
         const err = await res.json();
         console.error(chalk.red(`Error: ${err.error || res.statusText}`));
         if (res.status === 401) {
-          console.error(chalk.dim("Hint: pass --token <channel-token> or set HOOKR_TOKEN"));
+          console.error(
+            chalk.dim("Hint: pass --token <channel-token> or set HOOKD_TOKEN"),
+          );
         }
         process.exit(1);
       }
 
-      const events = await res.json() as any[];
+      const events = (await res.json()) as any[];
 
       if (events.length === 0) {
         console.log(chalk.dim("No events found for this channel."));
@@ -191,7 +213,9 @@ channelCommand
         const status = evt.deliveredAt
           ? chalk.green("delivered")
           : chalk.yellow(`pending (${evt.attempts} attempts)`);
-        console.log(`  ${chalk.dim(time)}  ${chalk.cyan(evt.id)}  ${evt.method}  ${status}`);
+        console.log(
+          `  ${chalk.dim(time)}  ${chalk.cyan(evt.id)}  ${evt.method}  ${status}`,
+        );
       }
     } catch {
       console.error(chalk.red(`Failed to connect to server at ${baseUrl}`));

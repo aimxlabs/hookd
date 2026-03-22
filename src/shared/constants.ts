@@ -1,6 +1,6 @@
 export const DEFAULT_PORT = 4801;
 export const DEFAULT_HOST = "0.0.0.0";
-export const DEFAULT_DB_PATH = "hookr.db";
+export const DEFAULT_DB_PATH = "hookd.db";
 export const DEFAULT_RETENTION_DAYS = 7;
 
 export const CHANNEL_ID_PREFIX = "ch_";

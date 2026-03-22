@@ -1,17 +1,17 @@
-# Deploying hookr
+# Deploying hookd
 
-This guide has step-by-step CLI commands for deploying hookr to a cloud server. Every step is a single command — no console clicking, no GUI, no manual editing. An AI agent with cloud API credentials can follow these instructions directly.
+This guide has step-by-step CLI commands for deploying hookd to a cloud server. Every step is a single command — no console clicking, no GUI, no manual editing. An AI agent with cloud API credentials can follow these instructions directly.
 
 ## What you need before starting
 
-1. **A domain name** (e.g. `hookr.example.com`) — you'll point it at the server's IP
+1. **A domain name** (e.g. `hookd.example.com`) — you'll point it at the server's IP
 2. **Cloud provider credentials** — one of:
    - AWS: Access key + secret key (`aws configure`)
    - DigitalOcean: API token (`doctl auth init`)
 
 ## Option A: One-command deploy
 
-The fastest path. The `hookr deploy` command handles everything — creating the server, installing Docker, starting hookr with HTTPS.
+The fastest path. The `hookd deploy` command handles everything — creating the server, installing Docker, starting hookd with HTTPS.
 
 ### AWS
 
@@ -20,14 +20,14 @@ The fastest path. The `hookr deploy` command handles everything — creating the
 # https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 aws configure
 
-# Deploy hookr (creates EC2 instance + Elastic IP)
-hookr deploy aws hookr.example.com
+# Deploy hookd (creates EC2 instance + Elastic IP)
+hookd deploy aws hookd.example.com
 
 # Optional: specify region and instance type
-hookr deploy aws hookr.example.com us-west-2 --instance-type t3.micro
+hookd deploy aws hookd.example.com us-west-2 --instance-type t3.micro
 
 # If your account has no default VPC, specify VPC and subnet explicitly
-hookr deploy aws hookr.example.com us-east-1 --vpc-id vpc-xxx --subnet-id subnet-yyy
+hookd deploy aws hookd.example.com us-east-1 --vpc-id vpc-xxx --subnet-id subnet-yyy
 ```
 
 ### DigitalOcean
@@ -37,11 +37,11 @@ hookr deploy aws hookr.example.com us-east-1 --vpc-id vpc-xxx --subnet-id subnet
 # https://docs.digitalocean.com/reference/doctl/how-to/install/
 doctl auth init
 
-# Deploy hookr (creates Droplet + Reserved IP)
-hookr deploy digitalocean hookr.example.com
+# Deploy hookd (creates Droplet + Reserved IP)
+hookd deploy digitalocean hookd.example.com
 
 # Optional: specify region and size
-hookr deploy digitalocean hookr.example.com sfo1 --size s-1vcpu-2gb
+hookd deploy digitalocean hookd.example.com sfo1 --size s-1vcpu-2gb
 ```
 
 ### After deploying
@@ -51,28 +51,28 @@ The deploy command outputs the server's IP address. Point your DNS A record at t
 The deploy also auto-generates an admin token (needed for channel management). Retrieve it from the server:
 
 ```bash
-ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'sudo cat /opt/hookr/.admin-token'
+ssh -i ~/.ssh/hookd-deploy-key.pem ubuntu@<PUBLIC_IP> 'sudo cat /opt/hookd/.admin-token'
 ```
 
-Then set it locally before running `hookr setup`:
+Then set it locally before running `hookd setup`:
 
 ```bash
-export HOOKR_ADMIN_TOKEN=<token-from-above>
-hookr setup -s https://hookr.example.com
+export HOOKD_ADMIN_TOKEN=<token-from-above>
+hookd setup -s https://hookd.example.com
 ```
 
 ---
 
 ## Option B: Step-by-step manual commands
 
-If `hookr deploy` doesn't work for your setup, or you want to understand each step, here are the individual commands. These are written for AWS EC2 but the pattern is the same on any provider.
+If `hookd deploy` doesn't work for your setup, or you want to understand each step, here are the individual commands. These are written for AWS EC2 but the pattern is the same on any provider.
 
 ### Step 1: Create the server
 
 ```bash
 # Choose your region
 REGION="us-east-1"
-DOMAIN="hookr.example.com"
+DOMAIN="hookd.example.com"
 
 # Find the default VPC
 VPC_ID=$(aws ec2 describe-vpcs \
@@ -84,8 +84,8 @@ VPC_ID=$(aws ec2 describe-vpcs \
 # Create a security group that allows web traffic and SSH
 SG_ID=$(aws ec2 create-security-group \
   --region "$REGION" \
-  --group-name "hookr-server" \
-  --description "hookr - HTTP, HTTPS, SSH" \
+  --group-name "hookd-server" \
+  --description "hookd - HTTP, HTTPS, SSH" \
   --vpc-id "$VPC_ID" \
   --query "GroupId" \
   --output text)
@@ -106,11 +106,11 @@ aws ec2 authorize-security-group-ingress \
 # Create key pair for SSH access
 aws ec2 create-key-pair \
   --region "$REGION" \
-  --key-name "hookr-deploy-key" \
+  --key-name "hookd-deploy-key" \
   --query "KeyMaterial" \
-  --output text > ~/.ssh/hookr-deploy-key.pem
+  --output text > ~/.ssh/hookd-deploy-key.pem
 
-chmod 600 ~/.ssh/hookr-deploy-key.pem
+chmod 600 ~/.ssh/hookd-deploy-key.pem
 ```
 
 ### Step 3: Find the Ubuntu AMI
@@ -136,7 +136,7 @@ echo "AMI: $AMI_ID"
 USER_DATA=$(cat <<'USERDATA'
 #!/bin/bash
 set -euo pipefail
-export HOOKR_DOMAIN="__DOMAIN__"
+export HOOKD_DOMAIN="__DOMAIN__"
 
 # Install Docker
 apt-get update -y
@@ -148,13 +148,13 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
 apt-get update -y
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# Clone and start hookr
-git clone https://github.com/aimxlabs/hookr.git /opt/hookr
-cd /opt/hookr
+# Clone and start hookd
+git clone https://github.com/aimxlabs/hookd.git /opt/hookd
+cd /opt/hookd
 ADMIN_TOKEN=$(openssl rand -hex 32)
 cat > .env <<EOF2
-HOOKR_DOMAIN=${HOOKR_DOMAIN}
-HOOKR_ADMIN_TOKEN=${ADMIN_TOKEN}
+HOOKD_DOMAIN=${HOOKD_DOMAIN}
+HOOKD_ADMIN_TOKEN=${ADMIN_TOKEN}
 EOF2
 docker compose up -d --build
 echo "Admin token: ${ADMIN_TOKEN}"
@@ -169,12 +169,12 @@ INSTANCE_ID=$(aws ec2 run-instances \
   --region "$REGION" \
   --image-id "$AMI_ID" \
   --instance-type "t3.small" \
-  --key-name "hookr-deploy-key" \
+  --key-name "hookd-deploy-key" \
   --security-group-ids "$SG_ID" \
   --associate-public-ip-address \
   --user-data "$USER_DATA" \
   --block-device-mappings "DeviceName=/dev/sda1,Ebs={VolumeSize=20,VolumeType=gp3}" \
-  --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=hookr-server}]" \
+  --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=hookd-server}]" \
   --query "Instances[0].InstanceId" \
   --output text)
 
@@ -216,13 +216,13 @@ Point your domain's DNS A record at the static IP:
 
 ```
 Type: A
-Name: hookr (or whatever subdomain you chose)
+Name: hookd (or whatever subdomain you chose)
 Value: <the PUBLIC_IP from step 5>
 TTL: 300
 ```
 
 **How to do this depends on your DNS provider:**
-- **Cloudflare:** Dashboard → DNS → Add Record → Type A, Name `hookr`, Content `<IP>`
+- **Cloudflare:** Dashboard → DNS → Add Record → Type A, Name `hookd`, Content `<IP>`
 - **Namecheap:** Domain List → Manage → Advanced DNS → Add Record
 - **Route 53:** `aws route53 change-resource-record-sets` (see below)
 - **GoDaddy:** My Products → DNS → Add Record
@@ -257,8 +257,8 @@ aws route53 change-resource-record-sets \
 Wait 1-2 minutes for DNS to propagate, then:
 
 ```bash
-# Check if hookr is running
-curl https://hookr.example.com/health
+# Check if hookd is running
+curl https://hookd.example.com/health
 # Should return: {"status":"ok","timestamp":"..."}
 ```
 
@@ -266,99 +266,99 @@ curl https://hookr.example.com/health
 
 ```bash
 # On your local machine (not the server)
-npm install -g hookr
+npm install -g hookd
 
 # Retrieve the admin token from the server
-ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'sudo cat /opt/hookr/.admin-token'
+ssh -i ~/.ssh/hookd-deploy-key.pem ubuntu@<PUBLIC_IP> 'sudo cat /opt/hookd/.admin-token'
 
 # Set it locally
-export HOOKR_ADMIN_TOKEN=<admin-token-from-above>
+export HOOKD_ADMIN_TOKEN=<admin-token-from-above>
 
 # Guided setup — creates a channel, saves server URL + token
-hookr setup -s https://hookr.example.com
+hookd setup -s https://hookd.example.com
 
 # Start receiving webhooks locally
-hookr listen <channelId> --target http://localhost:8080/webhook
+hookd listen <channelId> --target http://localhost:8080/webhook
 ```
 
-> **Note:** The admin token is needed for creating, listing, and deleting channels. Once you have a channel, the channel's auth token (saved automatically by `hookr setup`) is all you need for `listen`, `poll`, and `inspect`.
+> **Note:** The admin token is needed for creating, listing, and deleting channels. Once you have a channel, the channel's auth token (saved automatically by `hookd setup`) is all you need for `listen`, `poll`, and `inspect`.
 
 ---
 
-## Managing your hookr server
+## Managing your hookd server
 
-After deployment, use `hookr manage` to manage your server. If you already ran `hookr setup`, the host is detected automatically from your saved server URL. Otherwise pass `--host <ip>`.
+After deployment, use `hookd manage` to manage your server. If you already ran `hookd setup`, the host is detected automatically from your saved server URL. Otherwise pass `--host <ip>`.
 
 ### Quick reference
 
 ```bash
-# If you ran hookr setup, the host is auto-detected from your server URL
-hookr manage status                          # Container health, disk usage
-hookr manage logs                            # Tail logs (Ctrl+C to stop)
-hookr manage update                          # Pull latest code, rebuild, restart
+# If you ran hookd setup, the host is auto-detected from your server URL
+hookd manage status                          # Container health, disk usage
+hookd manage logs                            # Tail logs (Ctrl+C to stop)
+hookd manage update                          # Pull latest code, rebuild, restart
 
 # Or specify the host explicitly
-hookr manage status  --host 1.2.3.4          # Container health, disk usage
-hookr manage start   --host 1.2.3.4          # Start containers
-hookr manage stop    --host 1.2.3.4          # Stop containers
-hookr manage restart --host 1.2.3.4          # Restart containers
-hookr manage update  --host 1.2.3.4          # Pull latest code, rebuild, restart
-hookr manage logs    --host 1.2.3.4          # Tail logs (Ctrl+C to stop)
-hookr manage backup  --host 1.2.3.4          # Download database backup
-hookr manage restore --host 1.2.3.4 backup.db  # Restore from backup
-hookr manage ssh     --host 1.2.3.4          # Open SSH session
-hookr manage domain  --host 1.2.3.4 new.example.com  # Change domain
-hookr manage env     --host 1.2.3.4          # Show current .env
-hookr manage cleanup --host 1.2.3.4          # Free disk space (prune Docker)
+hookd manage status  --host 1.2.3.4          # Container health, disk usage
+hookd manage start   --host 1.2.3.4          # Start containers
+hookd manage stop    --host 1.2.3.4          # Stop containers
+hookd manage restart --host 1.2.3.4          # Restart containers
+hookd manage update  --host 1.2.3.4          # Pull latest code, rebuild, restart
+hookd manage logs    --host 1.2.3.4          # Tail logs (Ctrl+C to stop)
+hookd manage backup  --host 1.2.3.4          # Download database backup
+hookd manage restore --host 1.2.3.4 backup.db  # Restore from backup
+hookd manage ssh     --host 1.2.3.4          # Open SSH session
+hookd manage domain  --host 1.2.3.4 new.example.com  # Change domain
+hookd manage env     --host 1.2.3.4          # Show current .env
+hookd manage cleanup --host 1.2.3.4          # Free disk space (prune Docker)
 
 # Teardown (requires aws/doctl CLI)
-hookr deploy teardown aws                    # Destroy all AWS resources
-hookr deploy teardown digitalocean           # Destroy all DO resources
+hookd deploy teardown aws                    # Destroy all AWS resources
+hookd deploy teardown digitalocean           # Destroy all DO resources
 ```
 
 ### Common operations
 
-**Check if hookr is running:**
+**Check if hookd is running:**
 ```bash
-hookr manage status --host 1.2.3.4
+hookd manage status --host 1.2.3.4
 ```
 
 **Update to latest version:**
 ```bash
-hookr manage update --host 1.2.3.4
+hookd manage update --host 1.2.3.4
 ```
 
 **View logs for debugging:**
 ```bash
 # All logs, follow mode
-hookr manage logs --host 1.2.3.4
+hookd manage logs --host 1.2.3.4
 
 # Last 50 lines, no follow
-hookr manage logs --host 1.2.3.4 --lines 50 --no-follow
+hookd manage logs --host 1.2.3.4 --lines 50 --no-follow
 
-# Just hookr logs (not Caddy)
-hookr manage logs --host 1.2.3.4 --service hookr
+# Just hookd logs (not Caddy)
+hookd manage logs --host 1.2.3.4 --service hookd
 ```
 
 **Backup before making changes:**
 ```bash
-hookr manage backup --host 1.2.3.4 --output hookr-2024-01-15.db
+hookd manage backup --host 1.2.3.4 --output hookd-2024-01-15.db
 ```
 
 **Restore from backup:**
 ```bash
-hookr manage restore --host 1.2.3.4 hookr-2024-01-15.db
+hookd manage restore --host 1.2.3.4 hookd-2024-01-15.db
 ```
 
 **Change domain:**
 ```bash
-hookr manage domain --host 1.2.3.4 new-hookr.example.com
+hookd manage domain --host 1.2.3.4 new-hookd.example.com
 ```
 
 **Tear everything down:**
 ```bash
-hookr deploy teardown aws
-hookr deploy teardown digitalocean
+hookd deploy teardown aws
+hookd deploy teardown digitalocean
 ```
 
 ### Saving connection details
@@ -367,38 +367,38 @@ Save your SSH connection info so you don't need `--host` every time:
 
 ```bash
 # Interactive — prompts for host, SSH key, user, remote directory
-hookr manage init
+hookd manage init
 
 # Or use environment variables
-export HOOKR_HOST="1.2.3.4"
-export HOOKR_SSH_KEY="$HOME/.ssh/hookr-deploy-key.pem"
-export HOOKR_SSH_USER="ubuntu"
+export HOOKD_HOST="1.2.3.4"
+export HOOKD_SSH_KEY="$HOME/.ssh/hookd-deploy-key.pem"
+export HOOKD_SSH_USER="ubuntu"
 
 # Now just:
-hookr manage status
-hookr manage update
-hookr manage logs
+hookd manage status
+hookd manage update
+hookd manage logs
 ```
 
-> **Tip:** If you already ran `hookr setup` or `hookr login` with a remote server URL, `hookr manage` auto-detects the host from your saved config — no extra setup needed.
+> **Tip:** If you already ran `hookd setup` or `hookd login` with a remote server URL, `hookd manage` auto-detects the host from your saved config — no extra setup needed.
 
 ---
 
 ## Troubleshooting
 
-### "Could not connect" when running hookr setup
+### "Could not connect" when running hookd setup
 
 The server might still be starting up. Docker image build takes 2-3 minutes on first deploy:
 
 ```bash
-hookr manage status --host <PUBLIC_IP>
-hookr manage logs --host <PUBLIC_IP> --no-follow
+hookd manage status --host <PUBLIC_IP>
+hookd manage logs --host <PUBLIC_IP> --no-follow
 ```
 
 Or SSH in and check cloud-init progress:
 
 ```bash
-hookr manage ssh --host <PUBLIC_IP>
+hookd manage ssh --host <PUBLIC_IP>
 tail -f /var/log/cloud-init-output.log
 ```
 
@@ -408,11 +408,11 @@ Caddy needs DNS to be pointing at the server before it can get a TLS certificate
 
 ```bash
 # Check if DNS is pointing to the right IP
-dig hookr.example.com +short
+dig hookd.example.com +short
 # Should show your server's IP
 
 # Check Caddy logs for certificate errors
-hookr manage logs --host <PUBLIC_IP> --service caddy --no-follow
+hookd manage logs --host <PUBLIC_IP> --service caddy --no-follow
 ```
 
 ### "Permission denied" on SSH
@@ -420,11 +420,11 @@ hookr manage logs --host <PUBLIC_IP> --service caddy --no-follow
 Make sure the key file has correct permissions:
 
 ```bash
-chmod 600 ~/.ssh/hookr-deploy-key.pem
+chmod 600 ~/.ssh/hookd-deploy-key.pem
 ```
 
 ### Server running out of disk space
 
 ```bash
-hookr manage cleanup --host <PUBLIC_IP>
+hookd manage cleanup --host <PUBLIC_IP>
 ```

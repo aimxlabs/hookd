@@ -1,11 +1,11 @@
 services:
-  hookr:
+  hookd:
     build: .
     volumes:
-      - hookr-data:/data
+      - hookd-data:/data
     environment:
-      - HOOKR_PUBLIC_URL=https://${HOOKR_DOMAIN}
-      - HOOKR_ADMIN_TOKEN=${HOOKR_ADMIN_TOKEN:-}
+      - HOOKD_PUBLIC_URL=https://${HOOKD_DOMAIN}
+      - HOOKD_ADMIN_TOKEN=${HOOKD_ADMIN_TOKEN:-}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:4801/health').then(r=>{if(!r.ok)process.exit(1)})"]
       interval: 30s
@@ -24,10 +24,10 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     environment:
-      - HOOKR_DOMAIN=${HOOKR_DOMAIN}
+      - HOOKD_DOMAIN=${HOOKD_DOMAIN}
     restart: unless-stopped
 
 volumes:
-  hookr-data:
+  hookd-data:
   caddy-data:
   caddy-config:

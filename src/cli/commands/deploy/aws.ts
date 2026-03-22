@@ -4,23 +4,39 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import chalk from "chalk";
 import ora from "ora";
-import { cloudInitScript, run, runInherit, waitForHealthIP } from "./helpers.js";
+import {
+  cloudInitScript,
+  run,
+  runInherit,
+  waitForHealthIP,
+} from "./helpers.js";
 
 export const awsSubcommand = new Command("aws")
-  .description("Deploy hookr to AWS EC2 (~$4-9/month, ~5 min)")
-  .argument("<domain>", "Domain name (e.g. hookr.example.com)")
+  .description("Deploy hookd to AWS EC2 (~$4-9/month, ~5 min)")
+  .argument("<domain>", "Domain name (e.g. hookd.example.com)")
   .argument("[region]", "AWS region", "us-east-1")
   .option("--instance-type <type>", "EC2 instance type", "t3.small")
-  .option("--key-name <name>", "SSH key pair name", "hookr-deploy-key")
-  .option("--sg-name <name>", "Security group name", "hookr-server")
-  .option("--repo <url>", "Git repository URL for hookr source", "https://github.com/aimxlabs/hookr.git")
+  .option("--key-name <name>", "SSH key pair name", "hookd-deploy-key")
+  .option("--sg-name <name>", "Security group name", "hookd-server")
+  .option(
+    "--repo <url>",
+    "Git repository URL for hookd source",
+    "https://github.com/aimxlabs/hookd.git",
+  )
   .option("--vpc-id <id>", "VPC ID (defaults to the default VPC)")
   .option("--subnet-id <id>", "Subnet ID (required if using a non-default VPC)")
   .action(async (domain: string, region: string, opts) => {
-    const { instanceType, keyName, sgName, repo, vpcId: optVpcId, subnetId } = opts;
+    const {
+      instanceType,
+      keyName,
+      sgName,
+      repo,
+      vpcId: optVpcId,
+      subnetId,
+    } = opts;
 
     console.log();
-    console.log(chalk.bold("==>") + " Deploying hookr to AWS EC2");
+    console.log(chalk.bold("==>") + " Deploying hookd to AWS EC2");
     console.log(`    Domain:   ${domain}`);
     console.log(`    Region:   ${region}`);
     console.log(`    Instance: ${instanceType}`);
@@ -45,8 +61,16 @@ export const awsSubcommand = new Command("aws")
         "--output",
         "text",
       ]);
-      if (vpcResult.code !== 0 || !vpcResult.stdout || vpcResult.stdout === "None") {
-        console.error(chalk.red("No default VPC found. Use --vpc-id and --subnet-id to specify a VPC."));
+      if (
+        vpcResult.code !== 0 ||
+        !vpcResult.stdout ||
+        vpcResult.stdout === "None"
+      ) {
+        console.error(
+          chalk.red(
+            "No default VPC found. Use --vpc-id and --subnet-id to specify a VPC.",
+          ),
+        );
         process.exit(1);
       }
       vpcId = vpcResult.stdout;
@@ -76,7 +100,7 @@ export const awsSubcommand = new Command("aws")
         "--group-name",
         sgName,
         "--description",
-        "hookr server - HTTP, HTTPS, SSH",
+        "hookd server - HTTP, HTTPS, SSH",
         "--vpc-id",
         vpcId,
         "--query",
@@ -170,7 +194,9 @@ export const awsSubcommand = new Command("aws")
 
     // ── Step 4: Launch Instance ────────────────────────────────────
     process.stdout.write(chalk.blue("==>") + " Launching EC2 instance...\n");
-    const userData = Buffer.from(cloudInitScript(domain, repo)).toString("base64");
+    const userData = Buffer.from(cloudInitScript(domain, repo)).toString(
+      "base64",
+    );
 
     const launchArgs = [
       "ec2",
@@ -191,7 +217,7 @@ export const awsSubcommand = new Command("aws")
       "--block-device-mappings",
       "DeviceName=/dev/sda1,Ebs={VolumeSize=20,VolumeType=gp3}",
       "--tag-specifications",
-      `ResourceType=instance,Tags=[{Key=Name,Value=hookr-server},{Key=hookr-domain,Value=${domain}}]`,
+      `ResourceType=instance,Tags=[{Key=Name,Value=hookd-server},{Key=hookd-domain,Value=${domain}}]`,
       "--query",
       "Instances[0].InstanceId",
       "--output",
@@ -271,10 +297,11 @@ export const awsSubcommand = new Command("aws")
     ]);
     console.log(`    Static IP: ${publicIp}`);
 
-    // ── Step 6: Wait for hookr ─────────────────────────────────────
+    // ── Step 6: Wait for hookd ─────────────────────────────────────
     console.log();
     console.log(
-      chalk.blue("==>") + " hookr is installing on the server (this takes 3-5 minutes)...",
+      chalk.blue("==>") +
+        " hookd is installing on the server (this takes 3-5 minutes)...",
     );
     console.log(
       `    Watch progress: ssh -i ${keyFile} ubuntu@${publicIp} 'tail -f /var/log/cloud-init-output.log'`,
@@ -287,7 +314,7 @@ export const awsSubcommand = new Command("aws")
     console.log();
     console.log("=".repeat(72));
     console.log();
-    console.log("  " + chalk.green("hookr server deployed!"));
+    console.log("  " + chalk.green("hookd server deployed!"));
     console.log();
     console.log(`  Instance:    ${instanceId}`);
     console.log(`  Public IP:   ${publicIp}`);
@@ -304,7 +331,7 @@ export const awsSubcommand = new Command("aws")
     console.log(`  After DNS is set, verify:  https://${domain}/health`);
     console.log();
     console.log("  Then on your local machine:");
-    console.log(`    hookr setup -s https://${domain}`);
+    console.log(`    hookd setup -s https://${domain}`);
     console.log();
     console.log("=".repeat(72));
     console.log();

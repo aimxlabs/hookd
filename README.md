@@ -1,48 +1,48 @@
-# hookr
+# hookd
 
 Webhook relay for AI agents. Receive, verify, and forward webhooks in real-time over WebSocket.
 
-AI agents can't easily receive webhooks — they don't run stable HTTP servers. **hookr** bridges this gap: it receives webhooks on behalf of agents and pushes them in real-time via WebSocket.
+AI agents can't easily receive webhooks — they don't run stable HTTP servers. **hookd** bridges this gap: it receives webhooks on behalf of agents and pushes them in real-time via WebSocket.
 
 ## Quick Start
 
-The hookr server typically runs on a cloud server (AWS, DigitalOcean, etc.) so it can receive webhooks from the internet. You connect to it from your local machine.
+The hookd server typically runs on a cloud server (AWS, DigitalOcean, etc.) so it can receive webhooks from the internet. You connect to it from your local machine.
 
 **On your server (3 commands):**
 
 ```bash
-git clone https://github.com/aimxlabs/hookr.git && cd hookr
-cp .env.example .env    # edit: set HOOKR_DOMAIN and HOOKR_ADMIN_TOKEN
+git clone https://github.com/aimxlabs/hookd.git && cd hookd
+cp .env.example .env    # edit: set HOOKD_DOMAIN and HOOKD_ADMIN_TOKEN
 docker compose up -d
 ```
 
 **On your local machine:**
 
 ```bash
-npm install -g hookr
+npm install -g hookd
 
 # Guided setup — creates a channel, saves your server URL and token
-hookr setup -s https://hookr.example.com
+hookd setup -s https://hookd.example.com
 
 # Start receiving events
-hookr listen ch_a1b2c3d4 --target http://localhost:8080/webhook
+hookd listen ch_a1b2c3d4 --target http://localhost:8080/webhook
 # => Connected! Forwarding events to http://localhost:8080/webhook...
 ```
 
 **Or for local development (everything on one machine):**
 
 ```bash
-hookr serve &
-hookr channel create --name my-github
-hookr listen ch_a1b2c3d4 --target http://localhost:8080/webhook
+hookd serve &
+hookd channel create --name my-github
+hookd listen ch_a1b2c3d4 --target http://localhost:8080/webhook
 ```
 
 ## How It Works
 
 ```
-GitHub/Stripe/etc.  →  hookr server  →  WebSocket     →  hookr listen  →  your local app
+GitHub/Stripe/etc.  →  hookd server  →  WebSocket     →  hookd listen  →  your local app
      (POST)            (stores event)    (real-time)       (persistent)     (localhost)
-                                      →  HTTP poll     →  hookr poll    →  cron job
+                                      →  HTTP poll     →  hookd poll    →  cron job
                                          (on-demand)      (one-shot)
                                       →  HTTP callback →  POST to URL
                                          (fallback)
@@ -51,67 +51,67 @@ GitHub/Stripe/etc.  →  hookr server  →  WebSocket     →  hookr listen  →
 1. Create a **channel** — get a unique webhook URL
 2. Point your provider (GitHub, Stripe, etc.) at the webhook URL
 3. Consume events via any of three delivery modes:
-   - **`hookr listen`** — real-time WebSocket push (persistent connection)
-   - **`hookr poll`** — HTTP polling (cron-friendly, no persistent connection)
-   - **HTTP callback** — hookr POSTs to a URL you configure
+   - **`hookd listen`** — real-time WebSocket push (persistent connection)
+   - **`hookd poll`** — HTTP polling (cron-friendly, no persistent connection)
+   - **HTTP callback** — hookd POSTs to a URL you configure
 4. Events are stored for replay and retry if delivery fails
 
 ## Commands
 
 ```
-hookr setup                    Guided setup — connect to server and create a channel
-hookr serve                    Start the hookr server
+hookd setup                    Guided setup — connect to server and create a channel
+hookd serve                    Start the hookd server
   -p, --port <port>            Port (default: 4801)
   --host <host>                Host (default: 0.0.0.0)
-  --db <path>                  SQLite database path (default: hookr.db)
+  --db <path>                  SQLite database path (default: hookd.db)
   --public-url <url>           Public URL (for correct URLs in logs)
 
-hookr channel create           Create a new webhook channel
+hookd channel create           Create a new webhook channel
   -n, --name <name>            Channel name (required)
   --provider <provider>        github | stripe | slack | generic
   --secret <secret>            Webhook signing secret
   --callback-url <url>         HTTP fallback URL
-  --admin-token <token>        Admin token (or set HOOKR_ADMIN_TOKEN)
+  --admin-token <token>        Admin token (or set HOOKD_ADMIN_TOKEN)
 
-hookr channel list             List all channels
-  --admin-token <token>        Admin token (or set HOOKR_ADMIN_TOKEN)
-hookr channel delete <id>      Delete a channel
-  --admin-token <token>        Admin token (or set HOOKR_ADMIN_TOKEN)
-hookr channel inspect <id>     Show recent events
+hookd channel list             List all channels
+  --admin-token <token>        Admin token (or set HOOKD_ADMIN_TOKEN)
+hookd channel delete <id>      Delete a channel
+  --admin-token <token>        Admin token (or set HOOKD_ADMIN_TOKEN)
+hookd channel inspect <id>     Show recent events
   --token <token>              Channel auth token
 
-hookr listen <channelId>       Listen for events and forward them
+hookd listen <channelId>       Listen for events and forward them
   -t, --target <url>           Local URL (default: http://localhost:3000)
   --json                       Output JSON to stdout
   --token <token>              Auth token
 
-hookr poll <channelId>         Poll for pending events (cron-friendly)
+hookd poll <channelId>         Poll for pending events (cron-friendly)
   -t, --target <url>           Forward events to this URL
   --limit <n>                  Max events per poll (default: 100)
   --after <eventId>            Cursor: only events after this ID
   --no-ack                     Don't auto-acknowledge fetched events
   --token <token>              Auth token
 
-hookr login <token>            Save server URL and auth token
+hookd login <token>            Save server URL and auth token
   -s, --server <url>           Server URL to save
 
-hookr deploy <command>         Provision or tear down a cloud hookr server
+hookd deploy <command>         Provision or tear down a cloud hookd server
   aws <domain> [region]        Deploy to AWS EC2 (~$4-9/month, ~5 min)
     --instance-type <type>     EC2 instance type (default: t3.small)
-    --key-name <name>          SSH key pair name (default: hookr-deploy-key)
-    --sg-name <name>           Security group name (default: hookr-server)
+    --key-name <name>          SSH key pair name (default: hookd-deploy-key)
+    --sg-name <name>           Security group name (default: hookd-server)
     --vpc-id <id>              VPC ID (defaults to default VPC)
     --subnet-id <id>           Subnet ID (for non-default VPCs)
   digitalocean <domain> [region]  Deploy to DigitalOcean (~$6/month, ~3 min)
     --size <size>              Droplet size slug (default: s-1vcpu-1gb)
-    --name <name>              Droplet name (default: hookr-server)
+    --name <name>              Droplet name (default: hookd-server)
   teardown <provider> [region] Destroy server and all cloud resources
 
-hookr manage <command>         Manage a remote hookr server via SSH
-  --host <host>                Server hostname or IP (or set HOOKR_HOST)
+hookd manage <command>         Manage a remote hookd server via SSH
+  --host <host>                Server hostname or IP (or set HOOKD_HOST)
   --key <path>                 SSH private key path
   --user <name>                SSH user (default: ubuntu)
-  --dir <path>                 Remote hookr directory (default: /opt/hookr)
+  --dir <path>                 Remote hookd directory (default: /opt/hookd)
 
   Subcommands:
     init                       Save SSH connection details
@@ -135,11 +135,11 @@ hookr manage <command>         Manage a remote hookr server via SSH
 All commands resolve the server URL and auth token in this order:
 
 1. **CLI flags** (`--server`, `--token`) — highest priority
-2. **Environment variables** (`HOOKR_SERVER`, `HOOKR_TOKEN`)
-3. **Config file** (`~/.hookr/config.json`) — saved by `hookr login` or `hookr setup`
+2. **Environment variables** (`HOOKD_SERVER`, `HOOKD_TOKEN`)
+3. **Config file** (`~/.hookd/config.json`) — saved by `hookd login` or `hookd setup`
 4. **Default** — `http://localhost:4801`
 
-Once you run `hookr login <token> -s https://your-server.com`, you won't need to pass `--server` or `--token` again.
+Once you run `hookd login <token> -s https://your-server.com`, you won't need to pass `--server` or `--token` again.
 
 ## Features
 
@@ -175,7 +175,7 @@ GET    /ws                       WebSocket endpoint for agents
 GET    /health                   Health check
 ```
 
-**Authentication:** Endpoints marked "admin token" require `HOOKR_ADMIN_TOKEN` (via `Authorization: Bearer <token>` header). If no admin token is configured on the server, these endpoints are unrestricted. Endpoints marked "channel token" require the channel's auth token (returned when the channel is created).
+**Authentication:** Endpoints marked "admin token" require `HOOKD_ADMIN_TOKEN` (via `Authorization: Bearer <token>` header). If no admin token is configured on the server, these endpoints are unrestricted. Endpoints marked "channel token" require the channel's auth token (returned when the channel is created).
 
 ### WebSocket Protocol
 
@@ -195,16 +195,16 @@ Agents connect via WebSocket and subscribe to channels:
 
 ## Deploying to the Cloud
 
-hookr is designed for a split setup: the **server** runs on a cloud machine with a public IP, and you **connect from your local machine** (or agent) to receive events.
+hookd is designed for a split setup: the **server** runs on a cloud machine with a public IP, and you **connect from your local machine** (or agent) to receive events.
 
 **One-command deploy** via the CLI for AWS and DigitalOcean — see **[DEPLOY.md](./DEPLOY.md)** for full step-by-step instructions (designed to be followed by an AI agent with cloud API credentials).
 
 ```bash
 # Deploy to AWS EC2
-hookr deploy aws hookr.example.com
+hookd deploy aws hookd.example.com
 
 # Deploy to DigitalOcean
-hookr deploy digitalocean hookr.example.com
+hookd deploy digitalocean hookd.example.com
 ```
 
 ### Docker deployment (recommended)
@@ -216,45 +216,45 @@ hookr deploy digitalocean hookr.example.com
 **Deploy:**
 
 ```bash
-git clone https://github.com/aimxlabs/hookr.git && cd hookr
+git clone https://github.com/aimxlabs/hookd.git && cd hookd
 cp .env.example .env
-# Edit .env — set HOOKR_DOMAIN and HOOKR_ADMIN_TOKEN
+# Edit .env — set HOOKD_DOMAIN and HOOKD_ADMIN_TOKEN
 docker compose up -d
 ```
 
 That's it. Caddy automatically provisions HTTPS via Let's Encrypt. Visit `https://your-domain.com/health` to verify.
 
-> **Tip:** Generate an admin token with `openssl rand -hex 32` and set it as `HOOKR_ADMIN_TOKEN` in `.env`. Without it, channel management endpoints are unrestricted.
+> **Tip:** Generate an admin token with `openssl rand -hex 32` and set it as `HOOKD_ADMIN_TOKEN` in `.env`. Without it, channel management endpoints are unrestricted.
 
 **Managing your server:**
 
 ```bash
-# If you ran hookr setup, manage commands work automatically
-hookr manage status
-hookr manage logs
-hookr manage update
-hookr manage backup
+# If you ran hookd setup, manage commands work automatically
+hookd manage status
+hookd manage logs
+hookd manage update
+hookd manage backup
 
 # Or specify the host explicitly
-hookr manage status --host 1.2.3.4
+hookd manage status --host 1.2.3.4
 ```
 
 ### Connecting from your local machine
 
 ```bash
 # Guided setup — creates a channel, saves server URL and token
-hookr setup -s https://your-domain.com
+hookd setup -s https://your-domain.com
 
 # All future commands use the saved config automatically
-hookr channel list
-hookr listen ch_a1b2c3d4 --target http://localhost:3000
-hookr poll ch_a1b2c3d4
+hookd channel list
+hookd listen ch_a1b2c3d4 --target http://localhost:3000
+hookd poll ch_a1b2c3d4
 ```
 
 Or save config manually:
 
 ```bash
-hookr login tok_xyz789 -s https://your-domain.com
+hookd login tok_xyz789 -s https://your-domain.com
 ```
 
 ### Environment variables
@@ -262,11 +262,11 @@ hookr login tok_xyz789 -s https://your-domain.com
 For CI/CD, Docker, or cron, use environment variables instead of the config file:
 
 ```bash
-export HOOKR_SERVER=https://hookr.example.com
-export HOOKR_TOKEN=tok_xyz789                  # channel auth token (for listen/poll/inspect)
-export HOOKR_ADMIN_TOKEN=<your-admin-token>    # admin token (for channel CRUD)
+export HOOKD_SERVER=https://hookd.example.com
+export HOOKD_TOKEN=tok_xyz789                  # channel auth token (for listen/poll/inspect)
+export HOOKD_ADMIN_TOKEN=<your-admin-token>    # admin token (for channel CRUD)
 
-hookr poll ch_a1b2c3d4 --target http://localhost:3000
+hookd poll ch_a1b2c3d4 --target http://localhost:3000
 ```
 
 ### Manual deployment (without Docker)
@@ -274,33 +274,33 @@ hookr poll ch_a1b2c3d4 --target http://localhost:3000
 If you prefer not to use Docker:
 
 ```bash
-npm install -g hookr
-hookr serve --public-url https://hookr.example.com
+npm install -g hookd
+hookd serve --public-url https://hookd.example.com
 ```
 
-You'll need to put hookr behind a reverse proxy (Nginx, Caddy) for HTTPS and manage the process yourself (systemd, pm2, etc.).
+You'll need to put hookd behind a reverse proxy (Nginx, Caddy) for HTTPS and manage the process yourself (systemd, pm2, etc.).
 
 ## Integration Guides
 
-hookr is designed as the webhook ingress layer for self-hosted AI agents. Below are step-by-step guides for the most popular agent frameworks.
+hookd is designed as the webhook ingress layer for self-hosted AI agents. Below are step-by-step guides for the most popular agent frameworks.
 
 ### OpenClaw (Clawdbot)
 
-OpenClaw's Gateway has a built-in hooks endpoint, but it only supports bearer-token auth — it can't verify GitHub/Stripe HMAC signatures natively. hookr handles signature verification and forwards verified payloads to the Gateway.
+OpenClaw's Gateway has a built-in hooks endpoint, but it only supports bearer-token auth — it can't verify GitHub/Stripe HMAC signatures natively. hookd handles signature verification and forwards verified payloads to the Gateway.
 
-**Flow:** `GitHub → hookr (cloud) → hookr listen (local) → OpenClaw Gateway (local)`
+**Flow:** `GitHub → hookd (cloud) → hookd listen (local) → OpenClaw Gateway (local)`
 
 ```bash
-# 1. On your server — start hookr
-hookr serve --public-url https://hookr.example.com
+# 1. On your server — start hookd
+hookd serve --public-url https://hookd.example.com
 
 # 2. On your local machine — run guided setup
-hookr setup -s https://hookr.example.com
+hookd setup -s https://hookd.example.com
 # => walks you through creating a channel with GitHub provider + signing secret
 # => saves server URL and token automatically
 
 # 3. Forward events to OpenClaw's Gateway hooks endpoint
-hookr listen ch_a1b2c3d4 --target http://127.0.0.1:18789/hooks/wake
+hookd listen ch_a1b2c3d4 --target http://127.0.0.1:18789/hooks/wake
 ```
 
 Then configure OpenClaw to accept the forwarded events in `~/.openclaw/openclaw.json`:
@@ -315,26 +315,26 @@ Then configure OpenClaw to accept the forwarded events in `~/.openclaw/openclaw.
 }
 ```
 
-Finally, point GitHub's webhook settings at your hookr URL (`https://hookr.example.com/h/ch_a1b2c3d4`). hookr verifies the HMAC-SHA256 signature, then forwards the raw payload to OpenClaw. The Gateway receives it as a wake event and triggers your agent.
+Finally, point GitHub's webhook settings at your hookd URL (`https://hookd.example.com/h/ch_a1b2c3d4`). hookd verifies the HMAC-SHA256 signature, then forwards the raw payload to OpenClaw. The Gateway receives it as a wake event and triggers your agent.
 
 **Alternative: Cron-based polling** — if you can't keep a persistent WebSocket connection:
 
 ```bash
 # Run every minute via cron — fetches pending events, forwards to OpenClaw, auto-acks
-*/1 * * * * hookr poll ch_a1b2c3d4 --target http://127.0.0.1:18789/hooks/wake
+*/1 * * * * hookd poll ch_a1b2c3d4 --target http://127.0.0.1:18789/hooks/wake
 ```
 
-> **Tip:** For Stripe or Slack, just change `--provider stripe` or `--provider slack` and set the matching signing secret. hookr handles each provider's signature format.
+> **Tip:** For Stripe or Slack, just change `--provider stripe` or `--provider slack` and set the matching signing secret. hookd handles each provider's signature format.
 
 ### nanobot
 
-nanobot doesn't have an HTTP webhook receiver yet (it's [on the roadmap](https://github.com/HKUDS/nanobot/discussions/431)). hookr fills this gap with two approaches.
+nanobot doesn't have an HTTP webhook receiver yet (it's [on the roadmap](https://github.com/HKUDS/nanobot/discussions/431)). hookd fills this gap with two approaches.
 
 **Option A: JSON stdout** — pipe events into a handler script
 
 ```bash
-# After running hookr setup (saves server URL + token)
-hookr listen ch_a1b2c3d4 --json \
+# After running hookd setup (saves server URL + token)
+hookd listen ch_a1b2c3d4 --json \
   | while IFS= read -r event; do
       # Extract the event body and pass it to nanobot
       echo "$event" | jq -r '.body' | nanobot run --stdin
@@ -343,47 +343,47 @@ hookr listen ch_a1b2c3d4 --json \
 
 Each webhook event is emitted as a single JSON line with fields `eventId`, `channelId`, `headers`, `body`, `method`, and `ip`.
 
-**Option B: HTTP callback** — use hookr's built-in fallback
+**Option B: HTTP callback** — use hookd's built-in fallback
 
 If you run a small local HTTP server that bridges to nanobot, you can skip the CLI entirely:
 
 ```bash
-# Create a channel with a callback URL (no hookr listen needed)
-hookr channel create \
+# Create a channel with a callback URL (no hookd listen needed)
+hookd channel create \
   --name stripe-payments \
   --provider stripe \
   --secret "$STRIPE_WEBHOOK_SECRET" \
   --callback-url http://127.0.0.1:9090/nanobot-bridge \
-  --admin-token "$HOOKR_ADMIN_TOKEN"
+  --admin-token "$HOOKD_ADMIN_TOKEN"
 ```
 
-When no WebSocket client is connected, hookr POSTs verified events directly to the callback URL with `X-Hookr-Event-Id` and `X-Hookr-Channel-Id` headers.
+When no WebSocket client is connected, hookd POSTs verified events directly to the callback URL with `X-Hookd-Event-Id` and `X-Hookd-Channel-Id` headers.
 
 **Option C: Cron polling** — no persistent process needed at all
 
 ```bash
 # Poll every 5 minutes, pipe events to nanobot (uses saved config)
-*/5 * * * * hookr poll ch_a1b2c3d4 \
+*/5 * * * * hookd poll ch_a1b2c3d4 \
   | while IFS= read -r event; do echo "$event" | jq -r '.body' | nanobot run --stdin; done
 ```
 
 ### Any Agent (Generic Pattern)
 
-hookr works with any agent framework. Pick the delivery mode that fits:
+hookd works with any agent framework. Pick the delivery mode that fits:
 
 | Mode | Command | Best for |
 |------|---------|----------|
-| WebSocket | `hookr listen` | Real-time agents with persistent connections |
-| HTTP poll | `hookr poll` | Cron jobs, serverless, ephemeral agents |
+| WebSocket | `hookd listen` | Real-time agents with persistent connections |
+| HTTP poll | `hookd poll` | Cron jobs, serverless, ephemeral agents |
 | HTTP callback | `--callback-url` | Agents with their own HTTP server |
 
-**Programmatic usage** — embed hookr in your own agent process:
+**Programmatic usage** — embed hookd in your own agent process:
 
 ```typescript
-import { createApp, startServer } from "hookr";
+import { createApp, startServer } from "hookd";
 
-// Start hookr as part of your agent
-await startServer({ port: 4801, dbPath: "hookr.db" });
+// Start hookd as part of your agent
+await startServer({ port: 4801, dbPath: "hookd.db" });
 
 // Or mount the Hono app inside your own server
 const { app, injectWebSocket } = createApp();

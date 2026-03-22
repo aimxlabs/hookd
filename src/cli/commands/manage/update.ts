@@ -30,6 +30,6 @@ export const updateSubcommand = new Command("update")
       stdio: ["ignore", "ignore", "ignore"],
     });
 
-    console.log(chalk.green("==>") + " hookr updated\n");
+    console.log(chalk.green("==>") + " hookd updated\n");
     await waitForHealth(remote.host);
   });

@@ -1,27 +1,27 @@
 #!/bin/bash
-# cloud-init.sh — Bootstrap a fresh Ubuntu server into a running hookr instance.
+# cloud-init.sh — Bootstrap a fresh Ubuntu server into a running hookd instance.
 #
 # This script is designed to run as user-data on a new VM (EC2, Droplet, etc).
-# It installs Docker, clones hookr, and starts the server with Caddy for HTTPS.
+# It installs Docker, clones hookd, and starts the server with Caddy for HTTPS.
 #
 # Required environment variable (passed via sed replacement before use):
-#   HOOKR_DOMAIN — your domain name (e.g. hookr.example.com)
+#   HOOKD_DOMAIN — your domain name (e.g. hookd.example.com)
 #
 # Usage:
 #   As cloud-init user-data (AWS/DO will run this on first boot as root):
-#     sed "s/HOOKR_DOMAIN=.*/HOOKR_DOMAIN=${YOUR_DOMAIN}/" cloud-init.sh
+#     sed "s/HOOKD_DOMAIN=.*/HOOKD_DOMAIN=${YOUR_DOMAIN}/" cloud-init.sh
 #
 #   Or SSH in and run manually:
-#     export HOOKR_DOMAIN=hookr.example.com
+#     export HOOKD_DOMAIN=hookd.example.com
 #     sudo -E bash cloud-init.sh
 
 set -euo pipefail
 
-HOOKR_DOMAIN="${HOOKR_DOMAIN:-hookr.example.com}"
-HOOKR_REPO="${HOOKR_REPO:-https://github.com/aimxlabs/hookr.git}"
+HOOKD_DOMAIN="${HOOKD_DOMAIN:-hookd.example.com}"
+HOOKD_REPO="${HOOKD_REPO:-https://github.com/aimxlabs/hookd.git}"
 
-echo "==> hookr cloud-init starting"
-echo "    Domain: ${HOOKR_DOMAIN}"
+echo "==> hookd cloud-init starting"
+echo "    Domain: ${HOOKD_DOMAIN}"
 
 # ── Install Docker ──────────────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
@@ -41,52 +41,52 @@ else
   echo "==> Docker already installed"
 fi
 
-# ── Clone and configure hookr ──────────────────────────────────────
-HOOKR_DIR="/opt/hookr"
-if [ ! -d "$HOOKR_DIR" ]; then
-  echo "==> Cloning hookr..."
+# ── Clone and configure hookd ──────────────────────────────────────
+HOOKD_DIR="/opt/hookd"
+if [ ! -d "$HOOKD_DIR" ]; then
+  echo "==> Cloning hookd..."
   apt-get install -y git
-  git clone "$HOOKR_REPO" "$HOOKR_DIR"
+  git clone "$HOOKD_REPO" "$HOOKD_DIR"
 else
-  echo "==> Updating hookr..."
-  cd "$HOOKR_DIR" && git pull
+  echo "==> Updating hookd..."
+  cd "$HOOKD_DIR" && git pull
 fi
 
-cd "$HOOKR_DIR"
+cd "$HOOKD_DIR"
 
 # Generate an admin token for channel management
-HOOKR_ADMIN_TOKEN=$(openssl rand -hex 32)
+HOOKD_ADMIN_TOKEN=$(openssl rand -hex 32)
 
 # Write .env
 cat > .env <<ENVEOF
-HOOKR_DOMAIN=${HOOKR_DOMAIN}
-HOOKR_ADMIN_TOKEN=${HOOKR_ADMIN_TOKEN}
+HOOKD_DOMAIN=${HOOKD_DOMAIN}
+HOOKD_ADMIN_TOKEN=${HOOKD_ADMIN_TOKEN}
 ENVEOF
 
-echo "==> Starting hookr with domain ${HOOKR_DOMAIN}..."
+echo "==> Starting hookd with domain ${HOOKD_DOMAIN}..."
 docker compose up -d --build
 
 # Wait for health check
-echo "==> Waiting for hookr to start..."
+echo "==> Waiting for hookd to start..."
 for i in $(seq 1 30); do
   if curl -sf http://localhost:4801/health >/dev/null 2>&1; then
-    echo "==> hookr is running!"
+    echo "==> hookd is running!"
     break
   fi
   sleep 2
 done
 
 # Save admin token to a file readable only by root, rather than echoing to logs
-TOKEN_FILE="/opt/hookr/.admin-token"
-echo "${HOOKR_ADMIN_TOKEN}" > "${TOKEN_FILE}"
+TOKEN_FILE="/opt/hookd/.admin-token"
+echo "${HOOKD_ADMIN_TOKEN}" > "${TOKEN_FILE}"
 chmod 600 "${TOKEN_FILE}"
 
 echo ""
 echo "========================================"
-echo "  hookr is deployed!"
+echo "  hookd is deployed!"
 echo ""
-echo "  Health check:  https://${HOOKR_DOMAIN}/health"
-echo "  Webhook URL:   https://${HOOKR_DOMAIN}/h/<channelId>"
+echo "  Health check:  https://${HOOKD_DOMAIN}/health"
+echo "  Webhook URL:   https://${HOOKD_DOMAIN}/h/<channelId>"
 echo ""
 echo "  Note: HTTPS will work once DNS is pointing"
 echo "  to this server's IP address."
@@ -94,8 +94,8 @@ echo ""
 echo "  The admin token is saved to: ${TOKEN_FILE}"
 echo "  Retrieve it with: sudo cat ${TOKEN_FILE}"
 echo ""
-echo "  Use it with: hookr channel create -n <name> --admin-token <token>"
+echo "  Use it with: hookd channel create -n <name> --admin-token <token>"
 echo ""
-echo "  Logs:   cd /opt/hookr && docker compose logs -f"
-echo "  Update: cd /opt/hookr && git pull && docker compose up -d --build"
+echo "  Logs:   cd /opt/hookd && docker compose logs -f"
+echo "  Update: cd /opt/hookd && git pull && docker compose up -d --build"
 echo "========================================"

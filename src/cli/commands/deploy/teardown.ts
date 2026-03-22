@@ -18,14 +18,14 @@ function prompt(question: string): Promise<string> {
 }
 
 async function teardownAws(region: string) {
-  console.log(chalk.blue("==>") + " Finding hookr EC2 instance...");
+  console.log(chalk.blue("==>") + " Finding hookd EC2 instance...");
   const instResult = await run("aws", [
     "ec2",
     "describe-instances",
     "--region",
     region,
     "--filters",
-    "Name=tag:Name,Values=hookr-server",
+    "Name=tag:Name,Values=hookd-server",
     "Name=instance-state-name,Values=running,stopped",
     "--query",
     "Reservations[].Instances[0].InstanceId",
@@ -35,7 +35,7 @@ async function teardownAws(region: string) {
 
   const instanceId = instResult.stdout;
   if (!instanceId || instanceId === "None") {
-    console.log(chalk.yellow("    No hookr instance found in " + region));
+    console.log(chalk.yellow("    No hookd instance found in " + region));
   } else {
     console.log(`    Terminating instance: ${instanceId}`);
     await run("aws", [
@@ -66,7 +66,7 @@ async function teardownAws(region: string) {
     "--region",
     region,
     "--query",
-    "Addresses[?Tags[?Key=='hookr-domain']].AllocationId",
+    "Addresses[?Tags[?Key=='hookd-domain']].AllocationId",
     "--output",
     "text",
   ]);
@@ -110,7 +110,7 @@ async function teardownAws(region: string) {
     "--region",
     region,
     "--group-name",
-    "hookr-server",
+    "hookd-server",
   ]);
 
   console.log(chalk.blue("==>") + " Cleaning up key pair...");
@@ -120,26 +120,28 @@ async function teardownAws(region: string) {
     "--region",
     region,
     "--key-name",
-    "hookr-deploy-key",
+    "hookd-deploy-key",
   ]);
   try {
-    unlinkSync(join(homedir(), ".ssh", "hookr-deploy-key.pem"));
+    unlinkSync(join(homedir(), ".ssh", "hookd-deploy-key.pem"));
   } catch {
     // key file may not exist
   }
 
   console.log();
-  console.log(chalk.green("==> AWS teardown complete. All hookr resources removed."));
+  console.log(
+    chalk.green("==> AWS teardown complete. All hookd resources removed."),
+  );
 }
 
 async function teardownDigitalocean() {
-  console.log(chalk.blue("==>") + " Finding hookr Droplet...");
+  console.log(chalk.blue("==>") + " Finding hookd Droplet...");
   const dropletResult = await run("doctl", [
     "compute",
     "droplet",
     "list",
     "--tag-name",
-    "hookr",
+    "hookd",
     "--format",
     "ID",
     "--no-header",
@@ -147,16 +149,10 @@ async function teardownDigitalocean() {
 
   const dropletId = dropletResult.stdout;
   if (!dropletId) {
-    console.log(chalk.yellow("    No hookr droplet found"));
+    console.log(chalk.yellow("    No hookd droplet found"));
   } else {
     console.log(`    Deleting Droplet: ${dropletId}`);
-    await run("doctl", [
-      "compute",
-      "droplet",
-      "delete",
-      dropletId,
-      "--force",
-    ]);
+    await run("doctl", ["compute", "droplet", "delete", dropletId, "--force"]);
     console.log(chalk.green("    Droplet deleted"));
   }
 
@@ -175,47 +171,51 @@ async function teardownDigitalocean() {
     const ip = parts[0];
     const did = parts[1];
     if (ip && !did) {
-      await run("doctl", [
-        "compute",
-        "reserved-ip",
-        "delete",
-        ip,
-        "--force",
-      ]);
+      await run("doctl", ["compute", "reserved-ip", "delete", ip, "--force"]);
       console.log(`    Released IP: ${ip}`);
     }
   }
 
   try {
-    unlinkSync(join(homedir(), ".ssh", "hookr-deploy-key"));
-    unlinkSync(join(homedir(), ".ssh", "hookr-deploy-key.pub"));
+    unlinkSync(join(homedir(), ".ssh", "hookd-deploy-key"));
+    unlinkSync(join(homedir(), ".ssh", "hookd-deploy-key.pub"));
   } catch {
     // key files may not exist
   }
 
   console.log();
   console.log(
-    chalk.green("==> DigitalOcean teardown complete. All hookr resources removed."),
+    chalk.green(
+      "==> DigitalOcean teardown complete. All hookd resources removed.",
+    ),
   );
 }
 
 export const teardownSubcommand = new Command("teardown")
-  .description("Destroy the hookr server and all cloud resources")
+  .description("Destroy the hookd server and all cloud resources")
   .argument("<provider>", "Cloud provider: aws or digitalocean")
   .argument("[region]", "AWS region (only for AWS)", "us-east-1")
   .action(async (provider: string, region: string) => {
     console.log();
     console.log(
-      chalk.red.bold("  ╔══════════════════════════════════════════════════════╗"),
+      chalk.red.bold(
+        "  ╔══════════════════════════════════════════════════════╗",
+      ),
     );
     console.log(
-      chalk.red.bold("  ║  THIS WILL PERMANENTLY DESTROY YOUR HOOKR SERVER    ║"),
+      chalk.red.bold(
+        "  ║  THIS WILL PERMANENTLY DESTROY YOUR HOOKD SERVER    ║",
+      ),
     );
     console.log(
-      chalk.red.bold("  ║  All data, channels, and tokens will be lost.       ║"),
+      chalk.red.bold(
+        "  ║  All data, channels, and tokens will be lost.       ║",
+      ),
     );
     console.log(
-      chalk.red.bold("  ╚══════════════════════════════════════════════════════╝"),
+      chalk.red.bold(
+        "  ╚══════════════════════════════════════════════════════╝",
+      ),
     );
     console.log();
 

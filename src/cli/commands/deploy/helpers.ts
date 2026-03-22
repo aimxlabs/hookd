@@ -5,18 +5,21 @@ import ora from "ora";
  * Generate the cloud-init user-data script with the domain substituted in.
  * This is the server-side bootstrap script that runs on first boot.
  */
-export function cloudInitScript(domain: string, repoUrl = "https://github.com/aimxlabs/hookr.git"): string {
+export function cloudInitScript(
+  domain: string,
+  repoUrl = "https://github.com/aimxlabs/hookd.git",
+): string {
   return `#!/bin/bash
-# cloud-init.sh — Bootstrap a fresh Ubuntu server into a running hookr instance.
+# cloud-init.sh — Bootstrap a fresh Ubuntu server into a running hookd instance.
 #
 # This script is designed to run as user-data on a new VM (EC2, Droplet, etc).
-# It installs Docker, clones hookr, and starts the server with Caddy for HTTPS.
+# It installs Docker, clones hookd, and starts the server with Caddy for HTTPS.
 
 set -euo pipefail
 
-HOOKR_DOMAIN="${domain}"
+HOOKD_DOMAIN="${domain}"
 
-echo "==> hookr cloud-init starting"
+echo "==> hookd cloud-init starting"
 echo "    Domain: ${domain}"
 
 # ── Install Docker ──────────────────────────────────────────────────
@@ -37,49 +40,49 @@ else
   echo "==> Docker already installed"
 fi
 
-# ── Clone and configure hookr ──────────────────────────────────────
-HOOKR_DIR="/opt/hookr"
-if [ ! -d "$HOOKR_DIR" ]; then
-  echo "==> Cloning hookr..."
+# ── Clone and configure hookd ──────────────────────────────────────
+HOOKD_DIR="/opt/hookd"
+if [ ! -d "$HOOKD_DIR" ]; then
+  echo "==> Cloning hookd..."
   apt-get install -y git
-  git clone ${repoUrl} "$HOOKR_DIR"
+  git clone ${repoUrl} "$HOOKD_DIR"
 else
-  echo "==> Updating hookr..."
-  cd "$HOOKR_DIR" && git pull
+  echo "==> Updating hookd..."
+  cd "$HOOKD_DIR" && git pull
 fi
 
-cd "$HOOKR_DIR"
+cd "$HOOKD_DIR"
 
 # Generate an admin token for channel management
-HOOKR_ADMIN_TOKEN=$(openssl rand -hex 32)
+HOOKD_ADMIN_TOKEN=$(openssl rand -hex 32)
 
 # Write .env
 cat > .env <<ENVEOF
-HOOKR_DOMAIN=${domain}
-HOOKR_ADMIN_TOKEN=\${HOOKR_ADMIN_TOKEN}
+HOOKD_DOMAIN=${domain}
+HOOKD_ADMIN_TOKEN=\${HOOKD_ADMIN_TOKEN}
 ENVEOF
 
-echo "==> Starting hookr with domain ${domain}..."
+echo "==> Starting hookd with domain ${domain}..."
 docker compose up -d --build
 
 # Wait for health check
-echo "==> Waiting for hookr to start..."
+echo "==> Waiting for hookd to start..."
 for i in $(seq 1 30); do
   if curl -sf http://localhost:4801/health >/dev/null 2>&1; then
-    echo "==> hookr is running!"
+    echo "==> hookd is running!"
     break
   fi
   sleep 2
 done
 
 # Save admin token to a file readable only by root, rather than echoing to logs
-TOKEN_FILE="/opt/hookr/.admin-token"
-echo "\${HOOKR_ADMIN_TOKEN}" > "\${TOKEN_FILE}"
+TOKEN_FILE="/opt/hookd/.admin-token"
+echo "\${HOOKD_ADMIN_TOKEN}" > "\${TOKEN_FILE}"
 chmod 600 "\${TOKEN_FILE}"
 
 echo ""
 echo "========================================"
-echo "  hookr is deployed!"
+echo "  hookd is deployed!"
 echo ""
 echo "  Health check:  https://${domain}/health"
 echo "  Webhook URL:   https://${domain}/h/<channelId>"
@@ -90,10 +93,10 @@ echo ""
 echo "  The admin token is saved to: \${TOKEN_FILE}"
 echo "  Retrieve it with: sudo cat \${TOKEN_FILE}"
 echo ""
-echo "  Use it with: hookr channel create -n <name> --admin-token <token>"
+echo "  Use it with: hookd channel create -n <name> --admin-token <token>"
 echo ""
-echo "  Logs:   cd /opt/hookr && docker compose logs -f"
-echo "  Update: cd /opt/hookr && git pull && docker compose up -d --build"
+echo "  Logs:   cd /opt/hookd && docker compose logs -f"
+echo "  Update: cd /opt/hookd && git pull && docker compose up -d --build"
 echo "========================================"
 `;
 }
@@ -111,7 +114,11 @@ export function run(
     proc.stderr!.on("data", (d: Buffer) => (stderr += d));
     proc.on("error", reject);
     proc.on("close", (code) =>
-      resolve({ code: code ?? 1, stdout: stdout.trim(), stderr: stderr.trim() }),
+      resolve({
+        code: code ?? 1,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+      }),
     );
   });
 }
@@ -135,7 +142,7 @@ export async function waitForHealthIP(
   maxAttempts = 60,
   intervalMs = 5000,
 ): Promise<boolean> {
-  const spinner = ora("Waiting for hookr to come online...").start();
+  const spinner = ora("Waiting for hookd to come online...").start();
   for (let i = 0; i < maxAttempts; i++) {
     try {
       const res = await fetch(`http://${ip}/health`, {
@@ -143,7 +150,7 @@ export async function waitForHealthIP(
         signal: AbortSignal.timeout(4000),
       });
       if (res.ok) {
-        spinner.succeed("hookr is online");
+        spinner.succeed("hookd is online");
         return true;
       }
     } catch {
@@ -151,6 +158,6 @@ export async function waitForHealthIP(
     }
     await new Promise((r) => setTimeout(r, intervalMs));
   }
-  spinner.warn("Health check timed out — hookr may still be starting");
+  spinner.warn("Health check timed out — hookd may still be starting");
   return false;
 }

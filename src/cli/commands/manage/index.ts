@@ -14,11 +14,11 @@ import { domainSubcommand } from "./domain.js";
 import { envSubcommand } from "./env.js";
 
 export const manageCommand = new Command("manage")
-  .description("Manage a remote hookr server via SSH")
-  .option("--host <host>", "Server hostname or IP (or set HOOKR_HOST)")
-  .option("--key <path>", "SSH private key path (or set HOOKR_SSH_KEY)")
-  .option("--user <name>", "SSH user (or set HOOKR_SSH_USER)")
-  .option("--dir <path>", "hookr directory on server (or set HOOKR_DIR)");
+  .description("Manage a remote hookd server via SSH")
+  .option("--host <host>", "Server hostname or IP (or set HOOKD_HOST)")
+  .option("--key <path>", "SSH private key path (or set HOOKD_SSH_KEY)")
+  .option("--user <name>", "SSH user (or set HOOKD_SSH_USER)")
+  .option("--dir <path>", "hookd directory on server (or set HOOKD_DIR)");
 
 manageCommand.addCommand(initSubcommand);
 manageCommand.addCommand(statusSubcommand);

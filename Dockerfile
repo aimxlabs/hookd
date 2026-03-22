@@ -32,4 +32,4 @@ EXPOSE 4801
 USER node
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/bin/hookr.js", "serve", "--db", "/data/hookr.db"]
+CMD ["node", "dist/bin/hookd.js", "serve", "--db", "/data/hookd.db"]

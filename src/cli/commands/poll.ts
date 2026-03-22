@@ -17,7 +17,11 @@ export const pollCommand = new Command("poll")
 
     if (!token) {
       console.error(chalk.red("Error: auth token is required for polling."));
-      console.error(chalk.dim("Set it with: hookr login <token>, or pass --token, or set HOOKR_TOKEN"));
+      console.error(
+        chalk.dim(
+          "Set it with: hookd login <token>, or pass --token, or set HOOKD_TOKEN",
+        ),
+      );
       process.exit(1);
     }
 
@@ -62,8 +66,8 @@ export const pollCommand = new Command("poll")
               headers: {
                 "Content-Type":
                   evt.headers["content-type"] || "application/json",
-                "X-Hookr-Event-Id": evt.id,
-                "X-Hookr-Channel-Id": evt.channelId,
+                "X-Hookd-Event-Id": evt.id,
+                "X-Hookd-Channel-Id": evt.channelId,
               },
               body: evt.body,
               signal: AbortSignal.timeout(30_000),
@@ -104,9 +108,7 @@ export const pollCommand = new Command("poll")
             signal: AbortSignal.timeout(10_000),
           });
         } catch {
-          console.error(
-            chalk.yellow("Warning: failed to acknowledge events"),
-          );
+          console.error(chalk.yellow("Warning: failed to acknowledge events"));
         }
       }
 
@@ -117,7 +119,7 @@ export const pollCommand = new Command("poll")
     } catch (err: any) {
       console.error(chalk.red(`Failed to connect to server at ${serverUrl}`));
       console.error(
-        chalk.dim("Is the server running? Start it with: hookr serve"),
+        chalk.dim("Is the server running? Start it with: hookd serve"),
       );
       process.exit(1);
     }

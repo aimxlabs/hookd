@@ -17,7 +17,9 @@ describe("webhook routes", () => {
     closeDb();
   });
 
-  function createChannel(overrides: Partial<typeof schema.channels.$inferInsert> = {}) {
+  function createChannel(
+    overrides: Partial<typeof schema.channels.$inferInsert> = {},
+  ) {
     const db = getDb();
     const id = `${CHANNEL_ID_PREFIX}${nanoid(16)}`;
     db.insert(schema.channels)
@@ -121,7 +123,7 @@ describe("API routes", () => {
     });
 
     expect(res.status).toBe(201);
-    const body = await res.json() as any;
+    const body = (await res.json()) as any;
     expect(body.id).toMatch(/^ch_/);
     expect(body.name).toBe("test-channel");
     expect(body.authToken).toMatch(/^tok_/);
@@ -137,7 +139,7 @@ describe("API routes", () => {
 
     const res = await app.request("/api/channels");
     expect(res.status).toBe(200);
-    const body = await res.json() as any[];
+    const body = (await res.json()) as any[];
     expect(body).toHaveLength(1);
     expect(body[0].name).toBe("test");
   });
@@ -148,7 +150,7 @@ describe("API routes", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "to-delete" }),
     });
-    const channel = await createRes.json() as any;
+    const channel = (await createRes.json()) as any;
 
     const deleteRes = await app.request(`/api/channels/${channel.id}`, {
       method: "DELETE",
@@ -156,14 +158,14 @@ describe("API routes", () => {
     expect(deleteRes.status).toBe(200);
 
     const listRes = await app.request("/api/channels");
-    const channels = await listRes.json() as any[];
+    const channels = (await listRes.json()) as any[];
     expect(channels).toHaveLength(0);
   });
 
   it("returns health status", async () => {
     const res = await app.request("/health");
     expect(res.status).toBe(200);
-    const body = await res.json() as any;
+    const body = (await res.json()) as any;
     expect(body.status).toBe("ok");
   });
 });

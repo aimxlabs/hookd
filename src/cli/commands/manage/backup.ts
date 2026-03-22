@@ -5,7 +5,7 @@ import { requireRemote } from "./helpers.js";
 import { compose, sshExec, scpDownload } from "../../ssh.js";
 
 export const backupSubcommand = new Command("backup")
-  .description("Download a backup of the hookr database")
+  .description("Download a backup of the hookd database")
   .option("--output <path>", "Local path for backup file")
   .action(async function (this: Command) {
     const remote = requireRemote(this);
@@ -14,27 +14,27 @@ export const backupSubcommand = new Command("backup")
       .toISOString()
       .replace(/[T:]/g, "-")
       .replace(/\..+/, "");
-    const output = opts.output || `hookr-backup-${timestamp}.db`;
+    const output = opts.output || `hookd-backup-${timestamp}.db`;
 
     const spinner = ora("Creating database backup...").start();
 
-    // Stop hookr briefly for clean backup
-    spinner.text = "Stopping hookr for clean backup...";
-    await compose(remote, "stop hookr", {
+    // Stop hookd briefly for clean backup
+    spinner.text = "Stopping hookd for clean backup...";
+    await compose(remote, "stop hookd", {
       stdio: ["ignore", "ignore", "ignore"],
     });
 
     // Copy DB from container/volume to temp path on server
-    const tmp = `/tmp/hookr-backup-${Date.now()}.db`;
+    const tmp = `/tmp/hookd-backup-${Date.now()}.db`;
     const copyCode = await sshExec(
       remote,
-      `sudo docker cp $(sudo docker compose -f ${remote.remoteDir}/docker-compose.yml ps -q hookr 2>/dev/null || echo hookr-hookr-1):/data/hookr.db ${tmp} 2>/dev/null || sudo cp /var/lib/docker/volumes/hookr_hookr-data/_data/hookr.db ${tmp}`,
+      `sudo docker cp $(sudo docker compose -f ${remote.remoteDir}/docker-compose.yml ps -q hookd 2>/dev/null || echo hookd-hookd-1):/data/hookd.db ${tmp} 2>/dev/null || sudo cp /var/lib/docker/volumes/hookd_hookd-data/_data/hookd.db ${tmp}`,
       { stdio: ["ignore", "ignore", "ignore"] },
     );
 
-    // Restart hookr immediately
-    spinner.text = "Restarting hookr...";
-    await compose(remote, "start hookr", {
+    // Restart hookd immediately
+    spinner.text = "Restarting hookd...";
+    await compose(remote, "start hookd", {
       stdio: ["ignore", "ignore", "ignore"],
     });
 

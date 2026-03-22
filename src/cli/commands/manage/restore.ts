@@ -16,11 +16,16 @@ export const restoreSubcommand = new Command("restore")
       process.exit(1);
     }
 
-    console.log(chalk.yellow("==>") + " This will replace the current database with the backup.");
-    console.log(chalk.yellow("==>") + " The current database will be backed up first.\n");
+    console.log(
+      chalk.yellow("==>") +
+        " This will replace the current database with the backup.",
+    );
+    console.log(
+      chalk.yellow("==>") + " The current database will be backed up first.\n",
+    );
 
     const spinner = ora("Uploading backup file...").start();
-    const tmp = `/tmp/hookr-restore-${Date.now()}.db`;
+    const tmp = `/tmp/hookd-restore-${Date.now()}.db`;
 
     // Upload the backup
     const ulCode = await scpUpload(remote, file, tmp);
@@ -29,9 +34,9 @@ export const restoreSubcommand = new Command("restore")
       process.exit(1);
     }
 
-    // Stop hookr
-    spinner.text = "Stopping hookr...";
-    await compose(remote, "stop hookr", {
+    // Stop hookd
+    spinner.text = "Stopping hookd...";
+    await compose(remote, "stop hookd", {
       stdio: ["ignore", "ignore", "ignore"],
     });
 
@@ -39,7 +44,7 @@ export const restoreSubcommand = new Command("restore")
     spinner.text = "Restoring database...";
     const cpCode = await sshExec(
       remote,
-      `sudo docker cp ${tmp} $(sudo docker compose -f ${remote.remoteDir}/docker-compose.yml ps -q hookr 2>/dev/null || echo hookr-hookr-1):/data/hookr.db`,
+      `sudo docker cp ${tmp} $(sudo docker compose -f ${remote.remoteDir}/docker-compose.yml ps -q hookd 2>/dev/null || echo hookd-hookd-1):/data/hookd.db`,
       { stdio: ["ignore", "ignore", "ignore"] },
     );
 
@@ -51,15 +56,15 @@ export const restoreSubcommand = new Command("restore")
     if (cpCode !== 0) {
       spinner.fail("Failed to restore database");
       // Try to restart anyway
-      await compose(remote, "start hookr", {
+      await compose(remote, "start hookd", {
         stdio: ["ignore", "ignore", "ignore"],
       });
       process.exit(1);
     }
 
-    // Restart hookr
-    spinner.text = "Starting hookr...";
-    await compose(remote, "start hookr", {
+    // Restart hookd
+    spinner.text = "Starting hookd...";
+    await compose(remote, "start hookd", {
       stdio: ["ignore", "ignore", "ignore"],
     });
 

@@ -1,4 +1,4 @@
-# Security Audit Report — hookr
+# Security Audit Report — hookd
 
 **Date**: 2026-03-21
 **Scope**: Full codebase review (src/, deploy/, Docker, configuration)
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-hookr is a webhook relay for AI agents — it receives webhooks from providers (GitHub, Stripe, Slack), verifies signatures, and forwards events via WebSocket or HTTP callback. A comprehensive security audit was performed and all critical, high, and medium issues have been resolved.
+hookd is a webhook relay for AI agents — it receives webhooks from providers (GitHub, Stripe, Slack), verifies signatures, and forwards events via WebSocket or HTTP callback. A comprehensive security audit was performed and all critical, high, and medium issues have been resolved.
 
 ---
 

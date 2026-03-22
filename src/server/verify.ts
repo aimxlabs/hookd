@@ -13,10 +13,7 @@ export function verifyGithubSignature(
 
   if (expected.length !== signatureHeader.length) return false;
 
-  return timingSafeEqual(
-    Buffer.from(expected),
-    Buffer.from(signatureHeader),
-  );
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(signatureHeader));
 }
 
 export function verifyStripeSignature(
@@ -28,12 +25,8 @@ export function verifyStripeSignature(
 
   // Stripe signature format: t=timestamp,v1=signature
   const parts = signatureHeader.split(",");
-  const timestamp = parts
-    .find((p) => p.startsWith("t="))
-    ?.slice(2);
-  const signature = parts
-    .find((p) => p.startsWith("v1="))
-    ?.slice(3);
+  const timestamp = parts.find((p) => p.startsWith("t="))?.slice(2);
+  const signature = parts.find((p) => p.startsWith("v1="))?.slice(3);
 
   if (!timestamp || !signature) return false;
 

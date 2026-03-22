@@ -12,27 +12,31 @@ import { deployCommand } from "./commands/deploy/index.js";
 const program = new Command();
 
 program
-  .name("hookr")
+  .name("hookd")
   .description("Webhook relay for AI agents")
   .version("0.1.0")
   .action(() => {
     // Default action when no command is provided
     console.log();
-    console.log(chalk.bold("  hookr") + chalk.dim(" — webhook relay for AI agents"));
+    console.log(
+      chalk.bold("  hookd") + chalk.dim(" — webhook relay for AI agents"),
+    );
     console.log();
     console.log("  Get started:");
     console.log();
     console.log(chalk.dim("  # On your server (AWS, VPS, etc.)"));
-    console.log(`  $ ${chalk.cyan("hookr serve")}`);
+    console.log(`  $ ${chalk.cyan("hookd serve")}`);
     console.log();
     console.log(chalk.dim("  # On your local machine — guided setup"));
-    console.log(`  $ ${chalk.cyan("hookr setup")}`);
+    console.log(`  $ ${chalk.cyan("hookd setup")}`);
     console.log();
     console.log(chalk.dim("  # Or do it manually"));
-    console.log(`  $ ${chalk.cyan("hookr login <token> -s https://your-server.com")}`);
-    console.log(`  $ ${chalk.cyan("hookr listen <channelId>")}`);
+    console.log(
+      `  $ ${chalk.cyan("hookd login <token> -s https://your-server.com")}`,
+    );
+    console.log(`  $ ${chalk.cyan("hookd listen <channelId>")}`);
     console.log();
-    console.log(chalk.dim("  Run hookr --help for all commands."));
+    console.log(chalk.dim("  Run hookd --help for all commands."));
     console.log();
   });
 

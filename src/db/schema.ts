@@ -27,10 +27,7 @@ export const events = sqliteTable(
     attempts: integer("attempts").notNull().default(0),
   },
   (table) => [
-    index("idx_events_channel_received").on(
-      table.channelId,
-      table.receivedAt,
-    ),
+    index("idx_events_channel_received").on(table.channelId, table.receivedAt),
     index("idx_events_undelivered").on(table.deliveredAt),
   ],
 );

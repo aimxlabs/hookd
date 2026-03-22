@@ -14,7 +14,7 @@ export const domainSubcommand = new Command("domain")
     // Update .env on server
     await sshExec(
       remote,
-      `cd ${remote.remoteDir} && sudo sed -i 's/HOOKR_DOMAIN=.*/HOOKR_DOMAIN=${name}/' .env`,
+      `cd ${remote.remoteDir} && sudo sed -i 's/HOOKD_DOMAIN=.*/HOOKD_DOMAIN=${name}/' .env`,
       { stdio: ["ignore", "ignore", "ignore"] },
     );
 
