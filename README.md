@@ -1,8 +1,8 @@
 # hookd
 
-Webhook relay for AI agents. Receive, verify, and forward webhooks in real-time over WebSocket.
+Webhook relay for AI agents. Receive, verify, and forward webhooks to locally running agents.
 
-AI agents can't receive webhooks — they don't run stable HTTP servers. **hookd** bridges this gap: deploy a cloud relay server, and webhooks from GitHub, Stripe, and Slack get verified and forwarded to your local machine in real-time.
+AI agents can't receive webhooks — they usually don't run stable HTTP servers, and are often behind firewalls preventing external services from talking directly to them. **hookd** bridges this gap: deploy a cloud relay server, and webhooks from GitHub, Stripe, and Slack, for example, get verified and forwarded to your local agent in real-time.
 
 ## Quick Start
 
@@ -29,7 +29,7 @@ The skill will walk you through setup and autonomously:
 - Configure your webhook provider (GitHub, Stripe, or Slack)
 - Verify the full pipeline end-to-end and report a summary
 
-Once deployed, forward events to your local app:
+Once deployed, forward events to your local agent (like OpenClaw):
 
 ```bash
 hookd listen <channel-id> --target http://127.0.0.1:18789/hooks/wake
@@ -37,17 +37,8 @@ hookd listen <channel-id> --target http://127.0.0.1:18789/hooks/wake
 
 ## How It Works
 
-```
-GitHub/Stripe/etc.  →  hookd server  →  WebSocket     →  hookd listen  →  your local app
-     (POST)            (stores event)    (real-time)       (persistent)     (localhost)
-                                      →  HTTP poll     →  hookd poll    →  cron job
-                                         (on-demand)      (one-shot)
-                                      →  HTTP callback →  POST to URL
-                                         (fallback)
-```
-
 1. Create a **channel** — get a unique webhook URL
-2. Point your provider (GitHub, Stripe, etc.) at the webhook URL
+2. Point your 3rd party service (GitHub, Stripe, etc.) at the webhook URL
 3. Consume events via any of three delivery modes:
    - **`hookd listen`** — real-time WebSocket push (persistent connection)
    - **`hookd poll`** — HTTP polling (cron-friendly, no persistent connection)
