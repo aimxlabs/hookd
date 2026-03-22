@@ -3,7 +3,7 @@ import chalk from "chalk";
 import { resolveServerUrl } from "../config.js";
 
 export const channelCommand = new Command("channel").description(
-  "Manage webhook channels",
+  "Manage channels",
 );
 
 /** Resolve admin token from flag or HOOKD_ADMIN_TOKEN env var. */
@@ -24,7 +24,7 @@ function adminHeaders(adminToken?: string): Record<string, string> {
 
 channelCommand
   .command("create")
-  .description("Create a new webhook channel")
+  .description("Create a new channel")
   .requiredOption("-n, --name <name>", "Channel name")
   .option(
     "--provider <provider>",
@@ -72,7 +72,9 @@ channelCommand
       }
       console.log();
       console.log(
-        chalk.dim("Copy the webhook URL to your provider's webhook settings."),
+        chalk.dim(
+          "Send a POST to this URL to trigger events, or point a webhook provider at it.",
+        ),
       );
       console.log(chalk.dim(`Listen with: hookd listen ${channel.id}`));
     } catch (err: any) {

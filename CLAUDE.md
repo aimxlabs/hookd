@@ -1,6 +1,6 @@
 # hookd — Claude Code project context
 
-Webhook relay for AI agents. Receives webhooks from providers (GitHub, Stripe, Slack), verifies signatures, and forwards events to local dev servers via WebSocket, HTTP polling, or HTTP callback.
+HTTP trigger endpoint for AI agents. Receives payloads via simple HTTP POST and forwards events to agents via WebSocket, HTTP polling, or HTTP callback. Optionally verifies webhook signatures from known providers (GitHub, Stripe, Slack).
 
 ## Quick reference
 

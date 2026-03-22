@@ -36,13 +36,13 @@ export async function deliverEvent(event: WebhookEvent): Promise<void> {
       .all();
 
     if (channel?.callbackUrl) {
-      await deliverViaHttp(channel.callbackUrl, event);
+      await deliverViaHttp(channel.callbackUrl, event, channel.provider);
     }
   }
 }
 
-/** Headers that are safe to forward from the original webhook to the callback. */
-const FORWARDED_HEADER_ALLOWLIST = new Set([
+/** Headers that are safe to forward for provider-specific channels. */
+const PROVIDER_HEADER_ALLOWLIST = new Set([
   "content-type",
   "x-github-event",
   "x-github-delivery",
@@ -53,12 +53,44 @@ const FORWARDED_HEADER_ALLOWLIST = new Set([
   "user-agent",
 ]);
 
-/** Pick only safe headers from the original webhook to forward. */
-function safeHeaders(raw: Record<string, string>): Record<string, string> {
+/** Headers that should never be forwarded (hop-by-hop + sensitive). */
+const HEADER_DENYLIST = new Set([
+  "host",
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "connection",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+  "x-forwarded-for",
+  "x-real-ip",
+]);
+
+/**
+ * Pick safe headers from the original request to forward.
+ * Provider channels use a strict allowlist; generic channels forward
+ * everything except hop-by-hop and sensitive headers.
+ */
+function safeHeaders(
+  raw: Record<string, string>,
+  provider?: string | null,
+): Record<string, string> {
   const safe: Record<string, string> = {};
   for (const [key, value] of Object.entries(raw)) {
-    if (FORWARDED_HEADER_ALLOWLIST.has(key.toLowerCase())) {
-      safe[key] = value;
+    const lower = key.toLowerCase();
+    if (provider) {
+      if (PROVIDER_HEADER_ALLOWLIST.has(lower)) {
+        safe[key] = value;
+      }
+    } else {
+      if (!HEADER_DENYLIST.has(lower)) {
+        safe[key] = value;
+      }
     }
   }
   return safe;
@@ -67,6 +99,7 @@ function safeHeaders(raw: Record<string, string>): Record<string, string> {
 async function deliverViaHttp(
   callbackUrl: string,
   event: WebhookEvent,
+  provider?: string | null,
 ): Promise<boolean> {
   try {
     const response = await fetch(callbackUrl, {
@@ -79,6 +112,7 @@ async function deliverViaHttp(
           typeof event.headers === "string"
             ? JSON.parse(event.headers)
             : event.headers,
+          provider,
         ),
       },
       body: event.body,

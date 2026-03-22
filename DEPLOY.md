@@ -1,6 +1,6 @@
 # Deploying hookd
 
-This guide has step-by-step CLI commands for deploying hookd to a cloud server. Every step is a single command — no console clicking, no GUI, no manual editing. An AI agent with cloud API credentials can follow these instructions directly.
+This guide has step-by-step CLI commands for deploying hookd to a cloud server. Every step is a single command — no console clicking, no GUI, no manual editing. An AI agent with cloud credentials can follow these instructions directly.
 
 ## What you need before starting
 
@@ -277,8 +277,8 @@ export HOOKD_ADMIN_TOKEN=<admin-token-from-above>
 # Guided setup — creates a channel, saves server URL + token
 hookd setup -s https://hookd.example.com
 
-# Start receiving webhooks locally
-hookd listen <channelId> --target http://localhost:8080/webhook
+# Start receiving events locally
+hookd listen <channelId> --target http://localhost:3000
 ```
 
 > **Note:** The admin token is needed for creating, listing, and deleting channels. Once you have a channel, the channel's auth token (saved automatically by `hookd setup`) is all you need for `listen`, `poll`, and `inspect`.
