@@ -12,7 +12,7 @@ function prompt(
 
 export const setupCommand = new Command("setup")
   .description(
-    "Guided setup — connect to your hookd server and create a channel",
+    "Guided setup — connect to your hookd server and create a trigger channel",
   )
   .option("-s, --server <url>", "Server URL (skip the prompt)")
   .option("--admin-token <token>", "Admin token (or set HOOKD_ADMIN_TOKEN)")
@@ -26,7 +26,7 @@ export const setupCommand = new Command("setup")
     console.log(chalk.bold("  hookd setup"));
     console.log(
       chalk.dim(
-        "  This will connect you to your hookd server and create a channel.",
+        "  This will connect you to your hookd server and create a trigger channel.",
       ),
     );
     console.log();
@@ -91,24 +91,32 @@ export const setupCommand = new Command("setup")
     // Step 3: Create a channel
     console.log();
     const channelName =
-      (await prompt(rl, "  Channel name (e.g. github-webhooks): ")).trim() ||
-      "my-webhooks";
+      (await prompt(rl, "  Channel name (e.g. my-agent): ")).trim() ||
+      "my-agent";
 
     console.log();
     console.log(
-      chalk.dim("  Which service will send webhooks to this channel?"),
+      chalk.dim(
+        "  Will this channel receive webhooks from a known provider (GitHub, Stripe, Slack)?",
+      ),
     );
-    console.log(chalk.dim("  1) GitHub"));
-    console.log(chalk.dim("  2) Stripe"));
-    console.log(chalk.dim("  3) Slack"));
-    console.log(chalk.dim("  4) Other / not sure"));
-    const providerChoice = (await prompt(rl, "  Choice [4]: ")).trim() || "4";
+    console.log(
+      chalk.dim(
+        "  If so, you can enable signature verification. Otherwise, just press Enter.",
+      ),
+    );
+    console.log();
+    console.log(chalk.dim("  1) No — generic HTTP trigger (default)"));
+    console.log(chalk.dim("  2) Yes — GitHub webhooks"));
+    console.log(chalk.dim("  3) Yes — Stripe webhooks"));
+    console.log(chalk.dim("  4) Yes — Slack webhooks"));
+    const providerChoice = (await prompt(rl, "  Choice [1]: ")).trim() || "1";
 
     const providerMap: Record<string, string | undefined> = {
-      "1": "github",
-      "2": "stripe",
-      "3": "slack",
-      "4": undefined,
+      "1": undefined,
+      "2": "github",
+      "3": "stripe",
+      "4": "slack",
     };
     const provider = providerMap[providerChoice] ?? undefined;
 
@@ -185,9 +193,9 @@ export const setupCommand = new Command("setup")
       console.log(`  ${chalk.bold("Auth Token:")}  ${channel.authToken}`);
       console.log();
 
-      // Provider-specific instructions
+      // Next steps
       if (provider === "github") {
-        console.log(chalk.bold("  Next steps:"));
+        console.log(chalk.bold("  Configure GitHub:"));
         console.log();
         console.log(
           "  1. Go to your GitHub repo → Settings → Webhooks → Add webhook",
@@ -201,7 +209,7 @@ export const setupCommand = new Command("setup")
         }
         console.log();
       } else if (provider === "stripe") {
-        console.log(chalk.bold("  Next steps:"));
+        console.log(chalk.bold("  Configure Stripe:"));
         console.log();
         console.log(
           "  1. Go to Stripe Dashboard → Developers → Webhooks → Add endpoint",
@@ -210,7 +218,7 @@ export const setupCommand = new Command("setup")
         console.log("  3. Select the events you want to receive");
         console.log();
       } else if (provider === "slack") {
-        console.log(chalk.bold("  Next steps:"));
+        console.log(chalk.bold("  Configure Slack:"));
         console.log();
         console.log(
           "  1. Go to api.slack.com → Your App → Event Subscriptions",
@@ -218,15 +226,33 @@ export const setupCommand = new Command("setup")
         console.log(`  2. Set Request URL to: ${chalk.cyan(webhookUrl)}`);
         console.log();
       } else {
-        console.log(chalk.bold("  Next steps:"));
+        console.log(chalk.bold("  Trigger your agent:"));
         console.log();
         console.log(
-          `  1. Point your webhook provider at: ${chalk.cyan(webhookUrl)}`,
+          chalk.cyan(
+            `  curl -X POST ${webhookUrl} \\`,
+          ),
+        );
+        console.log(
+          chalk.cyan(
+            `    -H "Content-Type: application/json" \\`,
+          ),
+        );
+        console.log(
+          chalk.cyan(
+            `    -d '{"event": "hello", "data": {"message": "world"}}'`,
+          ),
+        );
+        console.log();
+        console.log(
+          chalk.dim(
+            "  Any HTTP POST to this URL will be forwarded to your agent.",
+          ),
         );
         console.log();
       }
 
-      console.log(`  Then start receiving events locally:`);
+      console.log(`  Start receiving events locally:`);
       console.log();
       console.log(chalk.cyan(`  hookd listen ${channel.id}`));
       console.log();

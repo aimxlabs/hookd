@@ -13,13 +13,13 @@ const program = new Command();
 
 program
   .name("hookd")
-  .description("Webhook relay for AI agents")
+  .description("HTTP trigger endpoint for AI agents")
   .version("0.1.0")
   .action(() => {
     // Default action when no command is provided
     console.log();
     console.log(
-      chalk.bold("  hookd") + chalk.dim(" — webhook relay for AI agents"),
+      chalk.bold("  hookd") + chalk.dim(" — HTTP trigger endpoint for AI agents"),
     );
     console.log();
     console.log("  Get started:");

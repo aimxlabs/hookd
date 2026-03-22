@@ -1,7 +1,7 @@
 {
   "name": "hookd",
   "version": "0.1.0",
-  "description": "Webhook relay for AI agents — receive, verify, and forward webhooks in real-time",
+  "description": "HTTP trigger endpoint for AI agents — receive payloads and forward them in real-time",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
