@@ -100,6 +100,8 @@ hookr deploy <command>         Provision or tear down a cloud hookr server
     --instance-type <type>     EC2 instance type (default: t3.small)
     --key-name <name>          SSH key pair name (default: hookr-deploy-key)
     --sg-name <name>           Security group name (default: hookr-server)
+    --vpc-id <id>              VPC ID (defaults to default VPC)
+    --subnet-id <id>           Subnet ID (for non-default VPCs)
   digitalocean <domain> [region]  Deploy to DigitalOcean (~$6/month, ~3 min)
     --size <size>              Droplet size slug (default: s-1vcpu-1gb)
     --name <name>              Droplet name (default: hookr-server)

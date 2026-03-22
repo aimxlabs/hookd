@@ -14,8 +14,10 @@ export const awsSubcommand = new Command("aws")
   .option("--key-name <name>", "SSH key pair name", "hookr-deploy-key")
   .option("--sg-name <name>", "Security group name", "hookr-server")
   .option("--repo <url>", "Git repository URL for hookr source", "https://github.com/aimxlabs/hookr.git")
+  .option("--vpc-id <id>", "VPC ID (defaults to the default VPC)")
+  .option("--subnet-id <id>", "Subnet ID (required if using a non-default VPC)")
   .action(async (domain: string, region: string, opts) => {
-    const { instanceType, keyName, sgName, repo } = opts;
+    const { instanceType, keyName, sgName, repo, vpcId: optVpcId, subnetId } = opts;
 
     console.log();
     console.log(chalk.bold("==>") + " Deploying hookr to AWS EC2");
@@ -27,23 +29,28 @@ export const awsSubcommand = new Command("aws")
     // ── Step 1: Security Group ─────────────────────────────────────
     process.stdout.write(chalk.blue("==>") + " Setting up security group...\n");
 
-    const vpcResult = await run("aws", [
-      "ec2",
-      "describe-vpcs",
-      "--region",
-      region,
-      "--filters",
-      "Name=isDefault,Values=true",
-      "--query",
-      "Vpcs[0].VpcId",
-      "--output",
-      "text",
-    ]);
-    if (vpcResult.code !== 0 || !vpcResult.stdout) {
-      console.error(chalk.red("Failed to find default VPC. Is the AWS CLI configured?"));
-      process.exit(1);
+    let vpcId: string;
+    if (optVpcId) {
+      vpcId = optVpcId;
+    } else {
+      const vpcResult = await run("aws", [
+        "ec2",
+        "describe-vpcs",
+        "--region",
+        region,
+        "--filters",
+        "Name=isDefault,Values=true",
+        "--query",
+        "Vpcs[0].VpcId",
+        "--output",
+        "text",
+      ]);
+      if (vpcResult.code !== 0 || !vpcResult.stdout || vpcResult.stdout === "None") {
+        console.error(chalk.red("No default VPC found. Use --vpc-id and --subnet-id to specify a VPC."));
+        process.exit(1);
+      }
+      vpcId = vpcResult.stdout;
     }
-    const vpcId = vpcResult.stdout;
 
     const sgLookup = await run("aws", [
       "ec2",
@@ -165,7 +172,7 @@ export const awsSubcommand = new Command("aws")
     process.stdout.write(chalk.blue("==>") + " Launching EC2 instance...\n");
     const userData = Buffer.from(cloudInitScript(domain, repo)).toString("base64");
 
-    const launchResult = await run("aws", [
+    const launchArgs = [
       "ec2",
       "run-instances",
       "--region",
@@ -189,7 +196,11 @@ export const awsSubcommand = new Command("aws")
       "Instances[0].InstanceId",
       "--output",
       "text",
-    ]);
+    ];
+    if (subnetId) {
+      launchArgs.push("--subnet-id", subnetId);
+    }
+    const launchResult = await run("aws", launchArgs);
     if (launchResult.code !== 0 || !launchResult.stdout) {
       console.error(chalk.red("Failed to launch EC2 instance"));
       console.error(launchResult.stderr);

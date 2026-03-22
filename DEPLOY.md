@@ -25,6 +25,9 @@ hookr deploy aws hookr.example.com
 
 # Optional: specify region and instance type
 hookr deploy aws hookr.example.com us-west-2 --instance-type t3.micro
+
+# If your account has no default VPC, specify VPC and subnet explicitly
+hookr deploy aws hookr.example.com us-east-1 --vpc-id vpc-xxx --subnet-id subnet-yyy
 ```
 
 ### DigitalOcean

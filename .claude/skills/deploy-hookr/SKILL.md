@@ -54,7 +54,16 @@ Capture the output — extract the **public IP** and **instance ID** from the co
 
 **Repo not accessible:** If cloud-init fails to clone the repo, tell the user the repo URL is not reachable from the server and abort. They can retry with `--repo <url>` pointing to an accessible fork.
 
-**No default VPC:** If deploy fails with "Failed to find default VPC", tell the user their AWS account is missing a default VPC in the target region and abort. Point them to `DEPLOY.md` for manual setup steps.
+**No default VPC:** If deploy fails with "No default VPC found", look up available VPCs and subnets in the region:
+```bash
+aws ec2 describe-vpcs --region <REGION> --query "Vpcs[*].[VpcId,Tags[?Key=='Name']|[0].Value]" --output text
+aws ec2 describe-subnets --region <REGION> --filters "Name=vpc-id,Values=<VPC_ID>" --query "Subnets[*].[SubnetId,AvailabilityZone,MapPublicIpOnLaunch]" --output text
+```
+Pick a VPC and a **public** subnet (one with `MapPublicIpOnLaunch=True`), then retry:
+```bash
+hookr deploy aws <DOMAIN> <REGION> --vpc-id <VPC_ID> --subnet-id <SUBNET_ID>
+```
+If no VPCs exist at all, tell the user and abort.
 
 **Network issues:** If the deploy command cannot reach the cloud provider API, tell the user to check their credentials and network access, and abort.
 
