@@ -5,7 +5,7 @@ import ora from "ora";
  * Generate the cloud-init user-data script with the domain substituted in.
  * This is the server-side bootstrap script that runs on first boot.
  */
-export function cloudInitScript(domain: string): string {
+export function cloudInitScript(domain: string, repoUrl = "https://github.com/aimxlabs/hookr.git"): string {
   return `#!/bin/bash
 # cloud-init.sh — Bootstrap a fresh Ubuntu server into a running hookr instance.
 #
@@ -42,7 +42,7 @@ HOOKR_DIR="/opt/hookr"
 if [ ! -d "$HOOKR_DIR" ]; then
   echo "==> Cloning hookr..."
   apt-get install -y git
-  git clone https://github.com/aimxlabs/hookr.git "$HOOKR_DIR"
+  git clone ${repoUrl} "$HOOKR_DIR"
 else
   echo "==> Updating hookr..."
   cd "$HOOKR_DIR" && git pull

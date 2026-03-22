@@ -18,6 +18,7 @@
 set -euo pipefail
 
 HOOKR_DOMAIN="${HOOKR_DOMAIN:-hookr.example.com}"
+HOOKR_REPO="${HOOKR_REPO:-https://github.com/aimxlabs/hookr.git}"
 
 echo "==> hookr cloud-init starting"
 echo "    Domain: ${HOOKR_DOMAIN}"
@@ -45,7 +46,7 @@ HOOKR_DIR="/opt/hookr"
 if [ ! -d "$HOOKR_DIR" ]; then
   echo "==> Cloning hookr..."
   apt-get install -y git
-  git clone https://github.com/aimxlabs/hookr.git "$HOOKR_DIR"
+  git clone "$HOOKR_REPO" "$HOOKR_DIR"
 else
   echo "==> Updating hookr..."
   cd "$HOOKR_DIR" && git pull

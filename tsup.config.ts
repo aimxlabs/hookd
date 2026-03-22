@@ -3,6 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig([
   {
     entry: ["src/bin/hookr.ts"],
+    outDir: "dist/bin",
     format: ["esm"],
     clean: true,
     sourcemap: true,

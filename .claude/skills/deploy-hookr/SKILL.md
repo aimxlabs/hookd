@@ -20,7 +20,7 @@ If the user passed a provider argument (e.g. `/deploy-hookr stripe`), skip the p
 
 ---
 
-## Phase 1: Gather minimum required information
+## Phase 1: Gather information and detect environment
 
 Ask the user only what you cannot determine yourself:
 
@@ -29,7 +29,6 @@ Ask the user only what you cannot determine yourself:
    - Run `aws sts get-caller-identity` to detect AWS
    - Run `doctl account get` to detect DigitalOcean
    - If both or neither are available, ask the user which to use
-
 Do NOT ask about:
 - Region (default to `us-east-1` for AWS, `nyc1` for DO)
 - Instance size (default to `t3.small` / `s-1vcpu-1gb`)
@@ -50,6 +49,14 @@ hookr deploy digitalocean <DOMAIN> <REGION>
 ```
 
 Capture the output — extract the **public IP** and **instance ID** from the command output.
+
+### If the deploy fails
+
+**Repo not accessible:** If cloud-init fails to clone the repo, tell the user the repo URL is not reachable from the server and abort. They can retry with `--repo <url>` pointing to an accessible fork.
+
+**No default VPC:** If deploy fails with "Failed to find default VPC", tell the user their AWS account is missing a default VPC in the target region and abort. Point them to `DEPLOY.md` for manual setup steps.
+
+**Network issues:** If the deploy command cannot reach the cloud provider API, tell the user to check their credentials and network access, and abort.
 
 ---
 
@@ -115,25 +122,34 @@ If health checks time out, SSH in and check logs:
 ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'tail -50 /var/log/cloud-init-output.log'
 ```
 
+If you cannot reach the server at all (no outbound network), tell the user and abort. They can verify manually by SSHing into the server.
+
 ---
 
 ## Phase 5: Install CLI and create channel
 
+### Install the CLI
+
 ```bash
-cd /tmp/hookr && npm install -g .
+cd /path/to/hookr && npm install -g .
 ```
 
-Or if already installed globally:
+Or if hookr is published:
 ```bash
 npm install -g hookr
 ```
 
-Retrieve the admin token from the server (it was auto-generated during deploy):
+### Retrieve the admin token
+
 ```bash
 ssh -i ~/.ssh/hookr-deploy-key.pem ubuntu@<PUBLIC_IP> 'sudo cat /opt/hookr/.admin-token'
 ```
 
-Then configure and create a channel:
+If SSH is not available from your environment, tell the user:
+> SSH into your server and run: `sudo cat /opt/hookr/.admin-token`
+
+### Configure and create a channel
+
 ```bash
 export HOOKR_ADMIN_TOKEN=<ADMIN_TOKEN_FROM_SERVER>
 hookr login <AUTH_TOKEN> -s https://<DOMAIN>
@@ -177,7 +193,7 @@ hookr channel create -n webhooks -s https://<DOMAIN>
 
 ## Phase 7: Verify end-to-end
 
-Send a test webhook to confirm the full pipeline works:
+Send a test webhook to confirm the full pipeline works.
 
 ```bash
 # Start listener in background
