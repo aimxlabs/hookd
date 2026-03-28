@@ -7,6 +7,7 @@ export const channels = sqliteTable("channels", {
   secret: text("secret"),
   callbackUrl: text("callback_url"),
   authToken: text("auth_token").notNull(),
+  ownerAddress: text("owner_address"), // Ethereum address of the channel creator (hello-message auth)
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

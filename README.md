@@ -183,7 +183,7 @@ await startServer({ port: 4801, dbPath: "hookd.db" });
 const { app, injectWebSocket } = createApp();
 ```
 
-**WebSocket client:**
+**WebSocket client (token auth):**
 
 ```typescript
 import WebSocket from "ws";
@@ -202,6 +202,17 @@ ws.on("message", (data) => {
 });
 ```
 
+**WebSocket client (hello-message auth):**
+
+```typescript
+// For identity-owned channels, pass a hello-message as the auth token
+ws.on("open", () => {
+  const helloMsg = generateHelloMessage(privateKey); // base64-encoded signed message
+  ws.send(JSON.stringify({ type: "auth", token: helloMsg }));
+  ws.send(JSON.stringify({ type: "subscribe", channelId: "ch_..." }));
+});
+```
+
 ## Manual Deployment
 
 If you prefer to deploy without Claude Code, see **[DEPLOY.md](./DEPLOY.md)** for:
@@ -215,26 +226,32 @@ If you prefer to deploy without Claude Code, see **[DEPLOY.md](./DEPLOY.md)** fo
 ## API
 
 ```
-POST   /api/channels              Create a channel           (admin token)
+POST   /api/channels              Create a channel           (admin token or hello-message)
 GET    /api/channels              List channels              (admin token)
 GET    /api/channels/:id          Get channel details        (admin token)
 DELETE /api/channels/:id          Delete a channel           (admin token)
-GET    /api/channels/:id/events   Recent events              (channel token)
-GET    /api/channels/:id/poll     Poll for undelivered events (channel token)
-POST   /api/channels/:id/ack     Acknowledge polled events   (channel token)
+GET    /api/channels/:id/events   Recent events              (channel token or hello-message)
+GET    /api/channels/:id/poll     Poll for undelivered events (channel token or hello-message)
+POST   /api/channels/:id/ack     Acknowledge polled events   (channel token or hello-message)
 
 POST   /h/:channelId             Trigger endpoint (POST any payload here)
 GET    /ws                       WebSocket endpoint for agents
 GET    /health                   Health check
 ```
 
-**Authentication:** Endpoints marked "admin token" require `HOOKD_ADMIN_TOKEN` (via `Authorization: Bearer <token>` header). Endpoints marked "channel token" require the channel's auth token (returned when the channel is created).
+**Authentication:** Two models:
+
+- **Token-based** (legacy): Admin creates channels with `HOOKD_ADMIN_TOKEN` (`Authorization: Bearer <token>`). Event access uses the channel's auth token (returned on creation).
+- **Hello-message** (identity-based): Agents create channels with `Authorization: Hello <base64>` (Ethereum signature). The channel is owned by the signer's address. Only the owner can read/poll/ack events — they must prove ownership via hello-message on every request. No shared tokens needed.
 
 ### WebSocket Protocol
 
 ```jsonc
-// Client sends
+// Client sends (token auth)
 { "type": "auth", "token": "tok_..." }
+// Client sends (hello-message auth — for identity-owned channels)
+{ "type": "auth", "token": "eyJtZXNzYWdlIjoi..." }
+// Then subscribe and ack as usual
 { "type": "subscribe", "channelId": "ch_..." }
 { "type": "ack", "eventId": "evt_..." }
 

@@ -9,6 +9,7 @@ import {
   MAX_QUERY_LIMIT,
 } from "../../shared/constants.js";
 import type { Provider } from "../../shared/types.js";
+import { verifyHelloMessage, extractHelloToken } from "../hello.js";
 
 const VALID_PROVIDERS = new Set(["github", "stripe", "slack", "generic"]);
 
@@ -115,12 +116,81 @@ function requireAdmin(c: { req: any }): Response | null {
   return null;
 }
 
-// ── Channel CRUD (admin-protected) ──────────────────────────────
+/**
+ * Authorize access to a channel via either:
+ * 1. Hello-message auth (if channel has ownerAddress) — verifies signer matches owner
+ * 2. Bearer token auth (legacy) — timing-safe token comparison
+ *
+ * Returns the verified Ethereum address on hello-message success, or true on token success.
+ * Returns an error Response if auth fails.
+ */
+function authorizeChannel(
+  c: any,
+  channel: { authToken: string; ownerAddress: string | null },
+): Response | string | true {
+  // Try hello-message auth first
+  const authHeader = c.req.header("authorization") as string | undefined;
+  const helloToken = extractHelloToken(authHeader);
+  if (helloToken) {
+    const result = verifyHelloMessage(helloToken);
+    if (!result.valid) {
+      return c.json(
+        { error: "hello-message verification failed: " + (result.error ?? "unknown") },
+        401,
+      );
+    }
+    if (
+      channel.ownerAddress &&
+      result.address.toLowerCase() !== channel.ownerAddress.toLowerCase()
+    ) {
+      return c.json({ error: "hello-message signer is not the channel owner" }, 403);
+    }
+    if (!channel.ownerAddress) {
+      return c.json(
+        { error: "channel does not support hello-message auth — use Bearer token" },
+        401,
+      );
+    }
+    return result.address;
+  }
+
+  // Fall back to bearer token auth
+  if (channel.ownerAddress) {
+    return c.json(
+      { error: "this channel requires hello-message auth (Authorization: Hello <base64>)" },
+      401,
+    );
+  }
+  const token = extractToken(c);
+  if (!token || !tokenEquals(token, channel.authToken)) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  return true;
+}
+
+// ── Channel CRUD (admin or hello-message) ────────────────────────
 
 // Create a channel
 api.post("/api/channels", async (c) => {
-  const denied = requireAdmin(c);
-  if (denied) return denied;
+  // Check for hello-message auth — allows agents to create their own channels
+  const authHeader = c.req.header("authorization") as string | undefined;
+  const helloToken = extractHelloToken(authHeader);
+  let ownerAddress: string | null = null;
+
+  if (helloToken) {
+    const result = verifyHelloMessage(helloToken);
+    if (!result.valid) {
+      return c.json(
+        { error: "hello-message verification failed: " + (result.error ?? "unknown") },
+        401,
+      );
+    }
+    ownerAddress = result.address.toLowerCase();
+  } else {
+    // Fall back to admin token auth
+    const denied = requireAdmin(c);
+    if (denied) return denied;
+  }
 
   const body = await c.req.json<{
     name: string;
@@ -166,24 +236,29 @@ api.post("/api/channels", async (c) => {
       secret: body.secret ?? null,
       callbackUrl: body.callbackUrl ?? null,
       authToken,
+      ownerAddress,
       createdAt: now,
       updatedAt: now,
     })
     .run();
 
-  return c.json(
-    {
-      id,
-      name: body.name,
-      provider: body.provider ?? null,
-      callbackUrl: body.callbackUrl ?? null,
-      authToken, // intentionally returned once on creation for the admin to save
-      createdAt: now,
-      updatedAt: now,
-      // Note: 'secret' is intentionally omitted from the response
-    },
-    201,
-  );
+  const response: Record<string, any> = {
+    id,
+    name: body.name,
+    provider: body.provider ?? null,
+    callbackUrl: body.callbackUrl ?? null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  // Only return authToken for admin-created channels (not hello-message channels)
+  if (!ownerAddress) {
+    response.authToken = authToken;
+  } else {
+    response.ownerAddress = ownerAddress;
+  }
+
+  return c.json(response, 201);
 });
 
 // List channels (admin-protected)
@@ -253,13 +328,11 @@ api.delete("/api/channels/:id", (c) => {
 
 // ── Event access (channel-token-protected) ──────────────────────
 
-// Get recent events for a channel (requires channel token)
+// Get recent events for a channel (requires channel token or hello-message)
 api.get("/api/channels/:id/events", (c) => {
   const db = getDb();
   const channelId = c.req.param("id");
   const limit = clampLimit(c.req.query("limit"), 20);
-
-  const token = extractToken(c);
 
   const [channel] = db
     .select()
@@ -268,9 +341,8 @@ api.get("/api/channels/:id/events", (c) => {
     .all();
 
   if (!channel) return c.json({ error: "Channel not found" }, 404);
-  if (!token || !tokenEquals(token, channel.authToken)) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
+  const authResult = authorizeChannel(c, channel);
+  if (authResult instanceof Response) return authResult;
 
   const channelEvents = db
     .select()
@@ -290,8 +362,6 @@ api.get("/api/channels/:id/poll", (c) => {
   const limit = clampLimit(c.req.query("limit"), 100);
   const afterCursor = c.req.query("after"); // event ID cursor
 
-  const token = extractToken(c);
-
   const [channel] = db
     .select()
     .from(schema.channels)
@@ -299,9 +369,8 @@ api.get("/api/channels/:id/poll", (c) => {
     .all();
 
   if (!channel) return c.json({ error: "Channel not found" }, 404);
-  if (!token || !tokenEquals(token, channel.authToken)) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
+  const authResult = authorizeChannel(c, channel);
+  if (authResult instanceof Response) return authResult;
 
   // Build query: undelivered events for this channel
   let conditions = and(
@@ -350,8 +419,6 @@ api.post("/api/channels/:id/ack", async (c) => {
   const db = getDb();
   const channelId = c.req.param("id");
 
-  const token = extractToken(c);
-
   const [channel] = db
     .select()
     .from(schema.channels)
@@ -359,9 +426,8 @@ api.post("/api/channels/:id/ack", async (c) => {
     .all();
 
   if (!channel) return c.json({ error: "Channel not found" }, 404);
-  if (!token || !tokenEquals(token, channel.authToken)) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
+  const authResult = authorizeChannel(c, channel);
+  if (authResult instanceof Response) return authResult;
 
   const body = await c.req.json<{ eventIds: string[] }>();
 

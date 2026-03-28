@@ -5,11 +5,13 @@ import { timingSafeEqual } from "node:crypto";
 import { getDb, schema } from "../db/index.js";
 import { parseClientMessage, type EventMessage } from "../shared/protocol.js";
 import { MAX_WS_MESSAGE_BYTES } from "../shared/constants.js";
+import { verifyHelloMessage } from "./hello.js";
 
 interface AgentConnection {
   ws: WSContext;
   channelIds: Set<string>;
   authenticated: boolean;
+  verifiedAddress?: string; // Ethereum address from hello-message auth
 }
 
 // channelId → Set of connected agents
@@ -72,8 +74,16 @@ export function handleWsClose(ws: WSContext): void {
 }
 
 function handleAuth(conn: AgentConnection, token: string): void {
-  // For now, auth is per-channel (verified on subscribe).
-  // Mark connection as authenticated with the provided token.
+  // Check if token is a hello-message (base64-encoded JSON)
+  const result = verifyHelloMessage(token);
+  if (result.valid) {
+    conn.authenticated = true;
+    conn.verifiedAddress = result.address.toLowerCase();
+    conn.ws.send(JSON.stringify({ type: "auth_ok" }));
+    return;
+  }
+
+  // Fall back to bearer token auth (verified per-channel on subscribe)
   conn.authenticated = true;
   (conn as any).token = token;
   conn.ws.send(JSON.stringify({ type: "auth_ok" }));
@@ -97,20 +107,36 @@ function handleSubscribe(conn: AgentConnection, channelId: string): void {
     return;
   }
 
-  // Verify auth token (timing-safe comparison to prevent timing attacks)
-  const token = (conn as any).token as string | undefined;
-  if (
-    !token ||
-    token.length !== channel.authToken.length ||
-    !timingSafeEqual(Buffer.from(token), Buffer.from(channel.authToken))
-  ) {
-    conn.ws.send(
-      JSON.stringify({
-        type: "auth_error",
-        message: "Invalid token for channel",
-      }),
-    );
-    return;
+  // Hello-message channels: verify the signer is the channel owner
+  if (channel.ownerAddress) {
+    if (
+      !conn.verifiedAddress ||
+      conn.verifiedAddress !== channel.ownerAddress.toLowerCase()
+    ) {
+      conn.ws.send(
+        JSON.stringify({
+          type: "auth_error",
+          message: "hello-message signer is not the channel owner",
+        }),
+      );
+      return;
+    }
+  } else {
+    // Legacy token-based channels: timing-safe token comparison
+    const token = (conn as any).token as string | undefined;
+    if (
+      !token ||
+      token.length !== channel.authToken.length ||
+      !timingSafeEqual(Buffer.from(token), Buffer.from(channel.authToken))
+    ) {
+      conn.ws.send(
+        JSON.stringify({
+          type: "auth_error",
+          message: "Invalid token for channel",
+        }),
+      );
+      return;
+    }
   }
 
   conn.channelIds.add(channelId);

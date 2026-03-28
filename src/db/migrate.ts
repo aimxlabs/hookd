@@ -31,4 +31,10 @@ export function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_events_undelivered
       ON events(delivered_at);
   `);
+
+  // Migration: add owner_address column for hello-message auth
+  const columns = db.pragma("table_info(channels)") as Array<{ name: string }>;
+  if (!columns.some((c) => c.name === "owner_address")) {
+    db.exec(`ALTER TABLE channels ADD COLUMN owner_address TEXT;`);
+  }
 }
